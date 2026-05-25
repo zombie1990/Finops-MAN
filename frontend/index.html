@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinOptica AI — SaaS Enterprise Cloud Cost Optimization</title>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- BARRE LATÉRALE (SIDEBAR) -->
+    <aside>
+      <div class="logo-container">
+        <div class="logo-icon">Φ</div>
+        <div class="logo-text">FinOptica AI</div>
+      </div>
+      
+      <div class="menu-section">
+        <div class="menu-label">Console Principal</div>
+        <div class="menu-item active" data-tab="dashboard-tab">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Dashboard</span>
+        </div>
+        <div class="menu-item" data-tab="explorer-tab">
+          <i class="fa-solid fa-compass"></i>
+          <span>Cost Explorer</span>
+        </div>
+        <div class="menu-item" data-tab="kubernetes-tab">
+          <i class="fa-brands fa-ethereum"></i>
+          <span>Kubernetes</span>
+        </div>
+        
+        <div class="menu-label">IA & Optimisation</div>
+        <div class="menu-item" data-tab="optimization-tab">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>Recommandations</span>
+        </div>
+        <div class="menu-item" data-tab="copilot-tab">
+          <i class="fa-solid fa-robot"></i>
+          <span>FinOps Copilot</span>
+        </div>
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="avatar">MA</div>
+        <div class="user-info">
+          <h4>Mahershal A.</h4>
+          <p>FinOps Principal</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ZONE DE CONTENU PRINCIPALE (MAIN PANEL) -->
+    <main>
+      <!-- EN-TÊTE -->
+      <header>
+        <div class="page-title">
+          <h1 id="page-header-title">Console FinOps</h1>
+          <p id="page-header-desc">Analyse financière et détection prédictive d'anomalies en temps réel.</p>
+        </div>
+        <div class="header-controls">
+          <div class="tenant-pill">Enterprise Sandbox</div>
+          <button class="btn btn-secondary" onclick="app.refreshData()">
+            <i class="fa-solid fa-rotate"></i> Synchroniser
+          </button>
+        </div>
+      </header>
+
+      <!-- PANNEAU 1 : DASHBOARD -->
+      <div id="dashboard-tab" class="section-container active">
+        <!-- CARTES DE MÉTRIQUES -->
+        <div class="card-grid">
+          <div class="card card-primary">
+            <div class="card-header-icon">
+              <span class="card-label">COÛT TOTAL CLOUD (30J)</span>
+              <div class="icon-wrapper"><i class="fa-solid fa-wallet"></i></div>
+            </div>
+            <div class="card-value" id="dash-total-cost">0.00 $</div>
+            <div class="card-change change-down" id="dash-change">
+              <i class="fa-solid fa-arrow-down"></i> 0.0% <span style="color:#718096; font-weight:normal;">vs mois préc.</span>
+            </div>
+          </div>
+          
+          <div class="card card-success">
+            <div class="card-header-icon">
+              <span class="card-label">ÉCONOMIES IMMÉDIATES</span>
+              <div class="icon-wrapper"><i class="fa-solid fa-piggy-bank"></i></div>
+            </div>
+            <div class="card-value" id="dash-savings">0.00 $</div>
+            <div class="card-change" style="color:var(--accent-green)">
+              Action requise en un clic
+            </div>
+          </div>
+          
+          <div class="card card-warning">
+            <div class="card-header-icon">
+              <span class="card-label">SCORE D'EFFICACITÉ</span>
+              <div class="icon-wrapper"><i class="fa-solid fa-gauge-high"></i></div>
+            </div>
+            <div class="card-value" id="dash-efficiency">100%</div>
+            <div class="card-change" style="color:#a0aec0">
+              Cible d'optimisation : >90%
+            </div>
+          </div>
+          
+          <div class="card card-danger">
+            <div class="card-header-icon">
+              <span class="card-label">EMPREINTE CARBONE (30J)</span>
+              <div class="icon-wrapper"><i class="fa-solid fa-leaf"></i></div>
+            </div>
+            <div class="card-value" id="dash-carbon">0.00 kg</div>
+            <div class="card-change change-down" style="color:var(--accent-green)">
+              <i class="fa-solid fa-arrow-down"></i> 14.2% <span style="color:#718096; font-weight:normal;">efficience carbone</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAPHIQUE ET ANOMALIES -->
+        <div class="dashboard-layout">
+          <!-- Graphique d'activité de coûts -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-chart-area"></i> Profil de Consommation Cloud Quotidien</h3>
+              <div class="legend-item" style="font-size:12px; color:#718096">Glisser pour explorer les pics</div>
+            </div>
+            <div class="svg-chart-container" id="trend-chart-container">
+              <!-- SVG dessiné dynamiquement en JS -->
+            </div>
+            <div class="chart-legend" id="trend-chart-legend"></div>
+          </div>
+
+          <!-- Anomalies récentes -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title" style="color:var(--accent-red)"><i class="fa-solid fa-triangle-exclamation"></i> Anomalies Récentes</h3>
+            </div>
+            <div id="anomalies-container">
+              <!-- Rempli en JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANNEAU 2 : COST EXPLORER -->
+      <div id="explorer-tab" class="section-container">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-solid fa-compass"></i> Explorateur Multi-Cloud</h3>
+            <div class="header-controls" style="gap:10px;">
+              <select class="btn btn-secondary" id="explorer-days" style="padding:8px 14px;" onchange="app.loadExplorerData()">
+                <option value="7">7 Derniers Jours</option>
+                <option value="30" selected>30 Derniers Jours</option>
+                <option value="45">45 Derniers Jours</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="dashboard-layout" style="grid-template-columns: 2fr 1fr; gap: 30px; margin-top:20px;">
+            <div class="svg-chart-container" id="explorer-chart-container" style="height:350px;">
+              <!-- Rempli par SVG dynamique -->
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:20px;">
+              <h4 style="font-size:14px; font-weight:700; color:#718096; text-transform:uppercase; letter-spacing:0.05em;">Répartition par Cloud</h4>
+              <div id="explorer-providers-container" style="display:flex; flex-direction:column; gap:16px;">
+                <!-- Rempli en JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANNEAU 3 : KUBERNETES -->
+      <div id="kubernetes-tab" class="section-container">
+        <div class="panel" style="margin-bottom:30px;">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-brands fa-ethereum"></i> Analyse d'Efficacité des Clusters Kubernetes</h3>
+            <span class="tenant-pill" style="color:var(--accent-purple)">k8s-prod-cluster-01</span>
+          </div>
+          
+          <p style="color:#a0aec0; font-size:14px; margin-bottom:24px; line-height:1.5;">
+            Cette vue croise l'allocation de coûts financiers du cluster avec les métriques réelles de sollicitation CPU et Mémoire fournies par Prometheus. Les pods présentant un score d'efficacité bas sont surdimensionnés ou inactifs.
+          </p>
+
+          <table class="k8s-table">
+            <thead>
+              <tr>
+                <th>Namespace</th>
+                <th>CPU Alloué / Utilisé</th>
+                <th>Mémoire Allouée / Utilisée</th>
+                <th>Coût Mensuel</th>
+                <th>Score d'Efficacité</th>
+              </tr>
+            </thead>
+            <tbody id="k8s-table-body">
+              <!-- Rempli dynamiquement en JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PANNEAU 4 : OPTIMIZATION CENTER -->
+      <div id="optimization-tab" class="section-container">
+        <div class="panel-header" style="margin-bottom: 24px;">
+          <h3 class="panel-title"><i class="fa-solid fa-lightbulb"></i> Moteur d'Optimisation des Coûts & Recommandations</h3>
+          <span style="font-size:14px; color:#718096;" id="active-recom-count">0 recommandation active</span>
+        </div>
+        
+        <div id="recommendations-container">
+          <!-- Rempli dynamiquement par JS -->
+        </div>
+      </div>
+
+      <!-- PANNEAU 5 : CO-PILOTE IA -->
+      <div id="copilot-tab" class="section-container">
+        <div class="copilot-container">
+          <!-- Discussions existantes -->
+          <div class="threads-sidebar">
+            <div class="new-thread-btn" id="btn-new-thread">
+              <i class="fa-solid fa-plus"></i> Nouvelle Discussion
+            </div>
+            <div class="thread-list" id="thread-list-container">
+              <!-- Rempli par JS -->
+            </div>
+          </div>
+          
+          <!-- Clavardage principal -->
+          <div class="chat-panel">
+            <div class="chat-messages" id="chat-messages-container">
+              <!-- Bulles de clavardage insérées dynamiquement -->
+            </div>
+            
+            <div class="chat-input-area">
+              <form class="chat-form" id="chat-form">
+                <input type="text" class="chat-input" id="chat-input-field" placeholder="Posez une question à FinOptica Copilot (ex: 'Génère le script Terraform de rightsizing EC2' ou 'Où est le gaspillage K8s ?')..." autocomplete="off">
+                <button type="submit" class="chat-send-btn">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- APPLICATION CODE -->
+  <script src="app.js"></script>
+</body>
+</html>

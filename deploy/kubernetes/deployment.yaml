@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finoptica-config
+  namespace: finops-enterprise
+data:
+  DATABASE_URL: "postgresql://finoptica_user:SecurePass2026@postgres-service.finops-enterprise.svc.cluster.local:5432/finoptica_prod"
+  DEFAULT_LLM_MODEL: "gpt-4o"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finoptica-backend
+  namespace: finops-enterprise
+  labels:
+    app: finoptica-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: finoptica-backend
+  template:
+    metadata:
+      labels:
+        app: finoptica-backend
+    spec:
+      containers:
+      - name: backend
+        image: finoptica/backend:v1.0.0
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: finoptica-config
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1024Mi"
+        readinessProbe:
+          httpGet:
+            path: /api/v1/auth/me
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/v1/auth/me
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finoptica-frontend
+  namespace: finops-enterprise
+  labels:
+    app: finoptica-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: finoptica-frontend
+  template:
+    metadata:
+      labels:
+        app: finoptica-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: finoptica/frontend:v1.0.0
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
