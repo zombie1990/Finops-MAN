@@ -242,3 +242,20 @@ class Connector(Base):
     last_sync_items = Column(Integer, default=0)
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class IngestionJob(Base):
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    source_type = Column(String, nullable=False)  # aws_cur, azure_cost, gcp_billing, kubernetes, file_upload
+    source_ref = Column(String, nullable=True)  # connector_id, file name, bucket path...
+    status = Column(String, default="Queued")  # Queued, Running, Succeeded, Failed
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    processed_items = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.services.ai_agent import AIAgentService
-from backend.app.config import settings
+from backend.app.security import require_permissions, AuthContext
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/copilot", tags=["AI Copilot & Chat"])
@@ -13,23 +13,30 @@ class ChatRequest(BaseModel):
 
 @router.get("/conversations")
 def list_conversations(
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("copilot:use")),
     db: Session = Depends(get_db)
 ):
-    return AIAgentService.list_conversations(db, tenant_id)
+    return AIAgentService.list_conversations(db, ctx.tenant_id)
+
+@router.get("/history/new")
+def get_new_history(
+    ctx: AuthContext = Depends(require_permissions("copilot:use")),
+    db: Session = Depends(get_db)
+):
+    return AIAgentService.get_conversation_history(db, ctx.tenant_id, None)
 
 @router.get("/history/{conversation_id}")
 def get_history(
     conversation_id: str,
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("copilot:use")),
     db: Session = Depends(get_db)
 ):
-    return AIAgentService.get_conversation_history(db, tenant_id, conversation_id)
+    return AIAgentService.get_conversation_history(db, ctx.tenant_id, conversation_id)
 
 @router.post("/chat")
 def chat_with_copilot(
     request: ChatRequest,
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("copilot:use")),
     db: Session = Depends(get_db)
 ):
-    return AIAgentService.send_message(db, tenant_id, request.conversation_id, request.prompt)
+    return AIAgentService.send_message(db, ctx.tenant_id, request.conversation_id, request.prompt)

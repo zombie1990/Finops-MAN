@@ -4,8 +4,21 @@ metadata:
   name: finoptica-config
   namespace: finops-enterprise
 data:
-  DATABASE_URL: "postgresql://finoptica_user:SecurePass2026@postgres-service.finops-enterprise.svc.cluster.local:5432/finoptica_prod"
   DEFAULT_LLM_MODEL: "gpt-4o"
+  APP_ENV: "production"
+  ALLOW_ANONYMOUS_AUTH: "false"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: finoptica-secrets
+  namespace: finops-enterprise
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://finoptica_user:change-me@postgres-service.finops-enterprise.svc.cluster.local:5432/finoptica_prod"
+  SECRET_KEY: "change-me-with-a-long-random-secret"
+  DEFAULT_ADMIN_PASSWORD: "change-me"
+  OPENAI_API_KEY: "change-me"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,6 +45,8 @@ spec:
         envFrom:
         - configMapRef:
             name: finoptica-config
+        - secretRef:
+            name: finoptica-secrets
         resources:
           requests:
             cpu: "250m"
@@ -41,13 +56,13 @@ spec:
             memory: "1024Mi"
         readinessProbe:
           httpGet:
-            path: /api/v1/auth/me
+            path: /health
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /api/v1/auth/me
+            path: /health
             port: 8000
           initialDelaySeconds: 15
           periodSeconds: 20

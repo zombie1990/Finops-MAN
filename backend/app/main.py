@@ -4,11 +4,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from backend.app.config import settings
+from backend.app.config import settings, validate_security_settings
 from backend.app.database import engine, Base
-from backend.app.api import auth, billing, optimization, ai_copilot
+from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion
 
 # Initialiser la base de données SQLite en dev (crée les tables si inexistantes)
+validate_security_settings()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -18,9 +19,10 @@ app = FastAPI(
 )
 
 # Configurer les CORS pour le développement
+allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +33,14 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(billing.router, prefix=settings.API_V1_STR)
 app.include_router(optimization.router, prefix=settings.API_V1_STR)
 app.include_router(ai_copilot.router, prefix=settings.API_V1_STR)
+app.include_router(connectors.router, prefix=settings.API_V1_STR)
+app.include_router(reports.router, prefix=settings.API_V1_STR)
+app.include_router(ingestion.router, prefix=settings.API_V1_STR)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": settings.PROJECT_NAME, "env": settings.APP_ENV}
 
 # Servir l'application Frontend statique
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))

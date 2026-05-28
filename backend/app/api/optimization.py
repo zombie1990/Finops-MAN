@@ -2,16 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models import Recommendation
-from backend.app.config import settings
+from backend.app.security import require_permissions, AuthContext
+from backend.app.services.recommendation_service import RecommendationService
 
 router = APIRouter(prefix="/optimization", tags=["Optimization & Actions"])
 
 @router.get("/recommendations")
 def get_recommendations(
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("optimization:read")),
     db: Session = Depends(get_db)
 ):
-    recs = db.query(Recommendation).filter(Recommendation.tenant_id == tenant_id).all()
+    recs = db.query(Recommendation).filter(Recommendation.tenant_id == ctx.tenant_id).all()
     return [
         {
             "id": r.id,
@@ -36,11 +37,11 @@ def get_recommendations(
 @router.post("/recommendations/{rec_id}/apply")
 def apply_recommendation(
     rec_id: str,
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("optimization:write")),
     db: Session = Depends(get_db)
 ):
     rec = db.query(Recommendation).filter(
-        Recommendation.tenant_id == tenant_id,
+        Recommendation.tenant_id == ctx.tenant_id,
         Recommendation.id == rec_id
     ).first()
     
@@ -61,11 +62,11 @@ def apply_recommendation(
 @router.post("/recommendations/{rec_id}/rollback")
 def rollback_recommendation(
     rec_id: str,
-    tenant_id: str = settings.DEFAULT_TENANT_ID,
+    ctx: AuthContext = Depends(require_permissions("optimization:write")),
     db: Session = Depends(get_db)
 ):
     rec = db.query(Recommendation).filter(
-        Recommendation.tenant_id == tenant_id,
+        Recommendation.tenant_id == ctx.tenant_id,
         Recommendation.id == rec_id
     ).first()
     
@@ -82,3 +83,10 @@ def rollback_recommendation(
         "rollback_script": rec.rollback_script,
         "output": f"[FINOPS ENGINE] Script de rollback appliqué.\n[EXECUTION] Retour à la configuration précédente effectué.\n[VERIFICATION] Ressource restaurée au statut d'origine."
     }
+
+@router.get("/recommendations/scored")
+def get_scored_recommendations(
+    ctx: AuthContext = Depends(require_permissions("optimization:read")),
+    db: Session = Depends(get_db)
+):
+    return RecommendationService.get_scored_recommendations(db, ctx.tenant_id)

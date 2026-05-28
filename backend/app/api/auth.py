@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from backend.app.config import settings
+from backend.app.security import create_access_token, get_auth_context, AuthContext
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -16,13 +17,18 @@ class UserResponse(BaseModel):
 
 @router.post("/login", response_model=UserResponse)
 def login(request: LoginRequest):
-    # Authentification simple pour le dev de l'application SaaS
-    if request.username == "admin" and request.password == "finops2026":
-        return UserResponse(
-            username="admin",
+    # Authentification locale (dev/staging) pilotée par variables d'environnement.
+    if request.username == settings.DEFAULT_ADMIN_USERNAME and request.password == settings.DEFAULT_ADMIN_PASSWORD:
+        token = create_access_token(
+            username=settings.DEFAULT_ADMIN_USERNAME,
             tenant_id=settings.DEFAULT_TENANT_ID,
-            role="FinOps Administrator",
-            token="mock-jwt-token-for-enterprise-finoptica-dashboard"
+            role=settings.DEFAULT_ADMIN_ROLE,
+        )
+        return UserResponse(
+            username=settings.DEFAULT_ADMIN_USERNAME,
+            tenant_id=settings.DEFAULT_TENANT_ID,
+            role=settings.DEFAULT_ADMIN_ROLE,
+            token=token,
         )
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -30,10 +36,10 @@ def login(request: LoginRequest):
     )
 
 @router.get("/me", response_model=UserResponse)
-def get_me():
+def get_me(ctx: AuthContext = Depends(get_auth_context)):
     return UserResponse(
-        username="admin",
-        tenant_id=settings.DEFAULT_TENANT_ID,
-        role="FinOps Administrator",
-        token="mock-jwt-token-for-enterprise-finoptica-dashboard"
+        username=ctx.username,
+        tenant_id=ctx.tenant_id,
+        role=ctx.role,
+        token=ctx.token,
     )
