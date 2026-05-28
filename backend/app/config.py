@@ -6,6 +6,8 @@ class Settings:
     API_V1_STR: str = "/api/v1"
     APP_ENV: str = os.getenv("APP_ENV", "development")
     ALLOW_ANONYMOUS_AUTH: bool = os.getenv("ALLOW_ANONYMOUS_AUTH", "true").lower() == "true"
+    # false par défaut : aucune donnée fictive injectée sans action explicite
+    USE_DEMO_DATA: bool = os.getenv("USE_DEMO_DATA", "false").lower() == "true"
     
     # Sécurité & JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-finops-key-for-jwt-signing-2026")

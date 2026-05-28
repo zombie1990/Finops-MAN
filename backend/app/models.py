@@ -259,3 +259,41 @@ class IngestionJob(Base):
     error_message = Column(Text, nullable=True)
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SyncSchedule(Base):
+    __tablename__ = "sync_schedules"
+
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    connector_id = Column(String, ForeignKey("connectors.id"), nullable=False)
+    enabled = Column(Boolean, default=True)
+    interval_minutes = Column(Integer, default=360)
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RagDocument(Base):
+    __tablename__ = "rag_documents"
+
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    source = Column(String, nullable=False)  # finops_kb, connector, report
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    embedding_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AutomationRun(Base):
+    __tablename__ = "automation_runs"
+
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    recommendation_id = Column(String, nullable=False)
+    automation_type = Column(String, default="github_pr")  # github_pr, terraform_plan
+    status = Column(String, default="Pending")  # Pending, Success, Failed
+    pr_url = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

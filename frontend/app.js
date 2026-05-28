@@ -34,13 +34,57 @@ class FinOpticaApp {
     if (this.newThreadBtn) {
       this.newThreadBtn.addEventListener('click', () => this.startNewConversation());
     }
+
+    this.bindSettingsUi();
     
     // Initialisation
     this.init();
   }
+
+  bindSettingsUi() {
+    const connectorForm = document.getElementById('connector-form');
+    if (connectorForm) {
+      connectorForm.addEventListener('submit', (e) => this.handleCreateConnector(e));
+    }
+    const providerSelect = document.getElementById('connector-provider');
+    if (providerSelect) {
+      providerSelect.addEventListener('change', () => this.updateConnectorConfigPlaceholder());
+    }
+    const dropZone = document.getElementById('csv-drop-zone');
+    const fileInput = document.getElementById('csv-file-input');
+    if (dropZone && fileInput) {
+      dropZone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => this.previewCsvFile(fileInput.files[0]));
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent-blue)'; });
+      dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#4a5568'; });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#4a5568';
+        if (e.dataTransfer.files.length) this.previewCsvFile(e.dataTransfer.files[0]);
+      });
+    }
+    const btnImport = document.getElementById('btn-csv-import');
+    if (btnImport) btnImport.addEventListener('click', () => this.importCsvFile());
+    const btnExport = document.getElementById('btn-csv-export');
+    if (btnExport) btnExport.addEventListener('click', () => this.exportCsv());
+    this.updateConnectorConfigPlaceholder();
+  }
+
+  updateConnectorConfigPlaceholder() {
+    const provider = document.getElementById('connector-provider')?.value || 'AWS';
+    const configField = document.getElementById('connector-config');
+    if (!configField) return;
+    const templates = {
+      AWS: '{\n  "access_key_id": "AKIA...",\n  "secret_access_key": "...",\n  "region": "eu-west-3",\n  "account_id": "123456789012"\n}',
+      Azure: '{\n  "tenant_id": "...",\n  "client_id": "...",\n  "client_secret": "...",\n  "subscription_id": "..."\n}',
+      GCP: '{\n  "project_id": "my-gcp-project",\n  "service_account_json": {},\n  "bigquery_dataset": "billing_export",\n  "bigquery_table": "gcp_billing_export_v1"\n}'
+    };
+    configField.value = templates[provider] || '{}';
+  }
   
   async init() {
     console.log("Démarrage de FinOptica AI...");
+    await this.loadPlatformStatus();
     await this.refreshData();
     await this.loadConversations();
     
@@ -79,7 +123,8 @@ class FinOpticaApp {
       'explorer-tab': { title: 'Cost Explorer', desc: 'Reverse-engineering et répartition granulaire de votre facturation multi-cloud.' },
       'kubernetes-tab': { title: 'Kubernetes Cost Metrics', desc: 'Optimisation de vos ressources de conteneurisation Kubernetes native.' },
       'optimization-tab': { title: 'Centre de Remédiation', desc: 'Plan d\'actions d\'économies prêtes pour exécution automatisée Terraform et kubectl.' },
-      'copilot-tab': { title: 'FinOps AI Copilot', desc: 'Discutez avec votre agent d\'IA expert cloud et automatisez les corrections.' }
+      'copilot-tab': { title: 'FinOps AI Copilot', desc: 'Discutez avec votre agent d\'IA expert cloud et automatisez les corrections.' },
+      'settings-tab': { title: 'Configuration', desc: 'Connectez AWS, Azure, GCP et importez vos données FinOps réelles.' }
     };
     
     if (titles[tabId]) {
@@ -94,14 +139,197 @@ class FinOpticaApp {
       this.loadKubernetesData();
     } else if (tabId === 'optimization-tab') {
       this.loadRecommendations();
+    } else if (tabId === 'settings-tab') {
+      this.loadSettingsPanel();
     }
   }
+
+  async loadPlatformStatus() {
+    try {
+      const res = await fetch(`${API_BASE}/platform/status`);
+      const status = await res.json();
+      const pill = document.getElementById('platform-mode-pill');
+      if (pill) {
+        pill.textContent = status.demo_mode ? 'Mode Demo' : 'Production';
+        pill.style.color = status.demo_mode ? 'var(--accent-orange)' : 'var(--accent-green)';
+      }
+      const container = document.getElementById('platform-status-container');
+      if (container) {
+        container.innerHTML = `
+          <p><strong>Environnement:</strong> ${status.environment}</p>
+          <p><strong>Mode données:</strong> ${status.data_mode}</p>
+          <p><strong>Enregistrements de coûts:</strong> ${status.cost_records}</p>
+          <p><strong>Connecteurs actifs:</strong> ${status.connectors_connected} / ${status.connectors_total}</p>
+          <p>${status.message}</p>
+        `;
+      }
+      this.platformStatus = status;
+    } catch (err) {
+      console.error('Erreur statut plateforme:', err);
+    }
+  }
+
+  async loadSettingsPanel() {
+    await this.loadPlatformStatus();
+    await this.loadConnectors();
+    await this.loadCsvHistory();
+  }
+
+  async loadConnectors() {
+    const container = document.getElementById('connectors-list');
+    if (!container) return;
+    try {
+      const res = await fetch(`${API_BASE}/connectors`);
+      const connectors = await res.json();
+      if (!connectors.length) {
+        container.innerHTML = '<p style="color:#718096;">Aucune connexion cloud. Ajoutez AWS, Azure ou GCP.</p>';
+        return;
+      }
+      container.innerHTML = connectors.map(c => `
+        <div class="anomaly-item" style="margin-bottom:10px;">
+          <div class="anomaly-meta">
+            <span class="severity-pill ${c.status === 'Connected' ? 'low' : 'high'}">${c.status}</span>
+            <div class="anomaly-info">
+              <h5>${c.name} (${c.provider})</h5>
+              <p>Type: ${c.connector_type} | Dernière sync: ${c.last_sync_at || 'jamais'} (${c.last_sync_items || 0} items)</p>
+              ${c.last_error ? `<p style="color:var(--accent-red)">${c.last_error}</p>` : ''}
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary" style="font-size:11px;" onclick="app.testConnector('${c.id}')">Tester</button>
+            <button class="btn btn-primary" style="font-size:11px;" onclick="app.syncConnector('${c.id}')">Synchroniser</button>
+            <button class="btn btn-danger" style="font-size:11px;" onclick="app.deleteConnector('${c.id}')">Supprimer</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<p style="color:var(--accent-red)">Erreur: ${err.message}</p>`;
+    }
+  }
+
+  async handleCreateConnector(e) {
+    e.preventDefault();
+    const provider = document.getElementById('connector-provider').value;
+    const name = document.getElementById('connector-name').value.trim();
+    const connector_type = document.getElementById('connector-type').value;
+    let config_json = {};
+    try {
+      config_json = JSON.parse(document.getElementById('connector-config').value || '{}');
+    } catch {
+      alert('JSON de configuration invalide.');
+      return;
+    }
+    const res = await fetch(`${API_BASE}/connectors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, name, connector_type, config_json })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || 'Erreur création connecteur');
+      return;
+    }
+    await this.loadConnectors();
+    await this.loadPlatformStatus();
+    alert(data.message || 'Connecteur créé');
+  }
+
+  async testConnector(id) {
+    const res = await fetch(`${API_BASE}/connectors/${id}/test`, { method: 'POST' });
+    const data = await res.json();
+    alert(data.message || (data.success ? 'Test OK' : 'Test échoué'));
+    await this.loadConnectors();
+  }
+
+  async syncConnector(id) {
+    const res = await fetch(`${API_BASE}/connectors/${id}/sync?days=30`, { method: 'POST' });
+    const data = await res.json();
+    alert(data.message || (data.success ? `Sync OK (${data.synced_items} items)` : 'Sync échouée'));
+    await this.loadConnectors();
+    await this.refreshData();
+    await this.loadPlatformStatus();
+  }
+
+  async deleteConnector(id) {
+    if (!confirm('Supprimer cette connexion ?')) return;
+    await fetch(`${API_BASE}/connectors/${id}`, { method: 'DELETE' });
+    await this.loadConnectors();
+  }
+
+  async previewCsvFile(file) {
+    if (!file) return;
+    this.selectedCsvFile = file;
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_BASE}/data/import/preview`, { method: 'POST', body: form });
+    const preview = await res.json();
+    const container = document.getElementById('csv-preview-container');
+    if (container) {
+      container.innerHTML = `
+        <p><strong>Fichier:</strong> ${preview.filename}</p>
+        <p><strong>Colonnes:</strong> ${(preview.headers || []).join(', ')}</p>
+        <p><strong>Validation:</strong> ${preview.validation_ok ? 'OK' : 'Colonnes requises: date, provider, service, cost'}</p>
+      `;
+    }
+  }
+
+  async importCsvFile() {
+    if (!this.selectedCsvFile) {
+      alert('Sélectionnez un fichier CSV.');
+      return;
+    }
+    const form = new FormData();
+    form.append('file', this.selectedCsvFile);
+    const res = await fetch(`${API_BASE}/data/import`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || 'Import échoué');
+      return;
+    }
+    alert(`Import réussi: ${data.items_imported} lignes`);
+    await this.loadCsvHistory();
+    await this.refreshData();
+    await this.loadPlatformStatus();
+  }
+
+  async loadCsvHistory() {
+    const container = document.getElementById('csv-history-container');
+    if (!container) return;
+    try {
+      const res = await fetch(`${API_BASE}/data/import/history`);
+      const history = await res.json();
+      if (!history.length) {
+        container.innerHTML = '<p style="color:#718096;">Aucun import.</p>';
+        return;
+      }
+      container.innerHTML = history.map(h => `
+        <div style="padding:8px 0; border-bottom:1px solid #2d3748;">
+          <strong>${h.filename}</strong> — ${h.status} — ${h.items_parsed} lignes — ${h.uploaded_at}
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<p>${err.message}</p>`;
+    }
+  }
+
+  exportCsv() {
+    window.open(`${API_BASE}/data/export/csv?days=30`, '_blank');
+  }
+  
+  async refreshData() {
   
   async refreshData() {
     try {
       // Charger le résumé financier global
       const res = await fetch(`${API_BASE}/billing/summary`);
       const summary = await res.json();
+
+      if (summary.total_cost === 0 && this.platformStatus && !this.platformStatus.demo_mode) {
+        const desc = document.getElementById('page-header-desc');
+        if (desc && this.activeTab === 'dashboard-tab') {
+          desc.textContent = 'Aucune donnée réelle détectée. Connectez un cloud (Paramètres) ou importez un CSV.';
+        }
+      }
       
       document.getElementById('dash-total-cost').textContent = `${summary.total_cost.toLocaleString()} $`;
       document.getElementById('dash-savings').textContent = `${summary.potential_savings.toLocaleString()} $`;

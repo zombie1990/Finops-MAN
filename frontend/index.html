@@ -41,6 +41,12 @@
           <i class="fa-solid fa-robot"></i>
           <span>FinOps Copilot</span>
         </div>
+
+        <div class="menu-label">Configuration</div>
+        <div class="menu-item" data-tab="settings-tab">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Paramètres</span>
+        </div>
       </div>
       
       <div class="sidebar-footer">
@@ -61,7 +67,7 @@
           <p id="page-header-desc">Analyse financière et détection prédictive d'anomalies en temps réel.</p>
         </div>
         <div class="header-controls">
-          <div class="tenant-pill">Enterprise Sandbox</div>
+          <div class="tenant-pill" id="platform-mode-pill">Production</div>
           <button class="btn btn-secondary" onclick="app.refreshData()">
             <i class="fa-solid fa-rotate"></i> Synchroniser
           </button>
@@ -213,7 +219,58 @@
         </div>
       </div>
 
-      <!-- PANNEAU 5 : CO-PILOTE IA -->
+      <!-- PANNEAU 5 : PARAMÈTRES -->
+      <div id="settings-tab" class="section-container">
+        <div class="panel" style="margin-bottom:24px;">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-solid fa-server"></i> Statut plateforme</h3>
+          </div>
+          <div id="platform-status-container" style="font-size:14px; color:#a0aec0; line-height:1.7;">
+            Chargement...
+          </div>
+        </div>
+
+        <div class="dashboard-layout" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-cloud"></i> Connexions Cloud</h3>
+            </div>
+            <form id="connector-form" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+              <select id="connector-provider" class="btn btn-secondary" style="text-align:left;">
+                <option value="AWS">AWS</option>
+                <option value="Azure">Azure</option>
+                <option value="GCP">GCP</option>
+              </select>
+              <input type="text" id="connector-name" class="chat-input" placeholder="Nom de la connexion (ex: AWS Production)" required>
+              <select id="connector-type" class="btn btn-secondary" style="text-align:left;">
+                <option value="billing_api">billing_api</option>
+                <option value="cost_export">cost_export</option>
+              </select>
+              <textarea id="connector-config" class="chat-input" rows="8" placeholder='Config JSON (ex AWS): {"access_key_id":"...","secret_access_key":"...","region":"eu-west-3","account_id":"123"}'></textarea>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter la connexion</button>
+            </form>
+            <div id="connectors-list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-file-csv"></i> Import / Export CSV</h3>
+            </div>
+            <div id="csv-drop-zone" style="border:2px dashed #4a5568; border-radius:12px; padding:30px; text-align:center; margin-bottom:16px; cursor:pointer;">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px; color:var(--accent-blue);"></i>
+              <p style="margin-top:10px;">Glissez un CSV ici ou cliquez pour parcourir</p>
+              <input type="file" id="csv-file-input" accept=".csv" style="display:none;">
+            </div>
+            <div id="csv-preview-container" style="margin-bottom:16px; font-size:13px;"></div>
+            <button class="btn btn-primary" id="btn-csv-import" style="margin-right:8px;"><i class="fa-solid fa-upload"></i> Importer</button>
+            <button class="btn btn-secondary" id="btn-csv-export"><i class="fa-solid fa-download"></i> Exporter CSV (30j)</button>
+            <h4 style="margin-top:24px; font-size:13px; color:#718096; text-transform:uppercase;">Historique imports</h4>
+            <div id="csv-history-container" style="margin-top:10px; font-size:13px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANNEAU 6 : CO-PILOTE IA -->
       <div id="copilot-tab" class="section-container">
         <div class="copilot-container">
           <!-- Discussions existantes -->

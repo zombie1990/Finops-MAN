@@ -57,9 +57,16 @@ cd backend
 python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Mode production (donnees reelles)
+
+- Par defaut: `USE_DEMO_DATA=false` (plus de seed fictif automatique).
+- Connecteurs cloud reels: AWS Cost Explorer, Azure Cost Management, GCP BigQuery export.
+- Import/Export CSV depuis l'UI (**Parametres**) et API `/api/v1/data/*`.
+- Guide detaille: `docs/production-real-data.md`
+
 ## Prochaines etapes recommandees
 
 1. Migrer SQLite vers PostgreSQL multi-tenant.
-2. Ajouter CI (tests, lint, securite SAST/SCA).
-3. Introduire workers d'ingestion (retry, checkpoint, rate-limit).
+2. Workers async pour sync planifiee multi-comptes.
+3. OIDC SSO + chiffrement credentials au repos.
 4. Migrer frontend vers React/TypeScript pour evolutivite enterprise.

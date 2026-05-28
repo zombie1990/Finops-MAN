@@ -44,13 +44,38 @@ def create_connector(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/{connector_id}/sync")
-def sync_connector(
+@router.post("/{connector_id}/test")
+def test_connector(
     connector_id: str,
     ctx: AuthContext = Depends(require_permissions("connectors:write")),
     db: Session = Depends(get_db),
 ):
-    data = ConnectorService.sync_connector(db, ctx.tenant_id, ctx.username, connector_id)
+    data = ConnectorService.test_connector(db, ctx.tenant_id, connector_id)
+    if data.get("message") == "Connecteur introuvable.":
+        raise HTTPException(status_code=404, detail=data["message"])
+    return data
+
+
+@router.post("/{connector_id}/sync")
+def sync_connector(
+    connector_id: str,
+    days: int = 30,
+    ctx: AuthContext = Depends(require_permissions("connectors:write")),
+    db: Session = Depends(get_db),
+):
+    data = ConnectorService.sync_connector(db, ctx.tenant_id, ctx.username, connector_id, days=days)
+    if data.get("message") == "Connecteur introuvable.":
+        raise HTTPException(status_code=404, detail=data["message"])
+    return data
+
+
+@router.delete("/{connector_id}")
+def delete_connector(
+    connector_id: str,
+    ctx: AuthContext = Depends(require_permissions("connectors:write")),
+    db: Session = Depends(get_db),
+):
+    data = ConnectorService.delete_connector(db, ctx.tenant_id, ctx.username, connector_id)
     if not data["success"]:
         raise HTTPException(status_code=404, detail=data["message"])
     return data

@@ -6,7 +6,7 @@ import os
 
 from backend.app.config import settings, validate_security_settings
 from backend.app.database import engine, Base
-from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion
+from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion, platform, csv_io
 
 # Initialiser la base de données SQLite en dev (crée les tables si inexistantes)
 validate_security_settings()
@@ -36,6 +36,8 @@ app.include_router(ai_copilot.router, prefix=settings.API_V1_STR)
 app.include_router(connectors.router, prefix=settings.API_V1_STR)
 app.include_router(reports.router, prefix=settings.API_V1_STR)
 app.include_router(ingestion.router, prefix=settings.API_V1_STR)
+app.include_router(platform.router, prefix=settings.API_V1_STR)
+app.include_router(csv_io.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

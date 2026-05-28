@@ -3,11 +3,14 @@ import random
 import math
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from backend.app.config import settings
 from backend.app.models import CostItem, KubernetesCost, Recommendation
 
 class CostAnalyzerService:
     @staticmethod
     def seed_data_if_empty(db: Session, tenant_id: str):
+        if not settings.USE_DEMO_DATA:
+            return
         # Vérifier si les données existent déjà
         count = db.query(CostItem).filter(CostItem.tenant_id == tenant_id).count()
         if count > 0:

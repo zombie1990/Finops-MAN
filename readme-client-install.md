@@ -84,11 +84,14 @@ Quand vous voyez le serveur demarre, ouvrez votre navigateur:
 
 ## 5) Connexion a l'application
 
-Identifiants par defaut:
+Identifiants par defaut (dev local uniquement):
 - utilisateur: `admin`
 - mot de passe: `finops2026`
 
-Important: en environnement client reel, changez ce mot de passe (voir section 8).
+Important:
+- En production, changez le mot de passe (section 8).
+- Ne pas activer `USE_DEMO_DATA` sauf demo commerciale.
+- Ajoutez vos connexions AWS/Azure/GCP dans l'onglet **Parametres** ou importez un CSV.
 
 ---
 
