@@ -56,10 +56,10 @@
       </div>
       
       <div class="sidebar-footer">
-        <div class="avatar">MA</div>
+        <div class="avatar" id="user-avatar">--</div>
         <div class="user-info">
-          <h4>Mahershal A.</h4>
-          <p>FinOps Principal</p>
+          <h4 id="user-display-name">Non connecté</h4>
+          <p id="user-display-role">—</p>
         </div>
       </div>
     </aside>
@@ -80,6 +80,9 @@
           <button type="button" id="theme-toggle" class="theme-toggle-btn" title="Basculer entre FinOptica et shadcn/ui">
             <i class="fa-solid fa-swatchbook" id="theme-toggle-icon"></i>
             <span id="theme-toggle-label">shadcn/ui</span>
+          </button>
+          <button type="button" id="btn-logout" class="btn btn-secondary" title="Déconnexion">
+            <i class="fa-solid fa-right-from-bracket"></i>
           </button>
         </div>
       </header>
@@ -313,6 +316,28 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Connexion -->
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <div class="auth-card">
+      <div class="auth-logo">Φ</div>
+      <h2>Connexion FinOptica</h2>
+      <p class="auth-subtitle">Authentifiez-vous pour accéder à la console FinOps.</p>
+      <form id="login-form" class="auth-form">
+        <label for="login-username">Identifiant</label>
+        <input type="text" id="login-username" name="username" autocomplete="username" required>
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+        <p id="login-error" class="auth-error" hidden></p>
+        <button type="submit" class="btn btn-primary auth-submit">
+          <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+        </button>
+      </form>
+      <button type="button" class="btn btn-secondary auth-sso" id="btn-oidc-login-overlay">
+        <i class="fa-solid fa-key"></i> Connexion SSO OIDC
+      </button>
+    </div>
   </div>
 
   <!-- APPLICATION CODE -->

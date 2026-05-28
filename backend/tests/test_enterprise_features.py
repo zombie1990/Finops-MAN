@@ -30,6 +30,15 @@ def test_rag_reindex():
     assert res.json()["success"] is True
 
 
+def test_rag_reindex_idempotent():
+    """Deux réindexations consécutives ne doivent pas empiler les docs recommendation."""
+    headers = auth_headers()
+    first = client.post("/api/v1/copilot/rag/reindex", headers=headers).json()
+    second = client.post("/api/v1/copilot/rag/reindex", headers=headers).json()
+    assert first["success"] and second["success"]
+    assert first["documents_indexed"] == second["documents_indexed"]
+
+
 def test_github_automation_not_configured():
     headers = auth_headers()
     res = client.get("/api/v1/automation/github/status", headers=headers)

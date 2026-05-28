@@ -47,6 +47,14 @@ class RagService:
     @staticmethod
     def index_tenant_context(db: Session, tenant_id: str) -> int:
         RagService.seed_tenant_knowledge(db, tenant_id)
+        (
+            db.query(RagDocument)
+            .filter(
+                RagDocument.tenant_id == tenant_id,
+                RagDocument.source == "recommendation",
+            )
+            .delete(synchronize_session=False)
+        )
         added = 0
         recs = db.query(Recommendation).filter(Recommendation.tenant_id == tenant_id).limit(20).all()
         for rec in recs:
@@ -133,11 +141,21 @@ class RagService:
 
         llm_answer = RagService._call_openai(system_prompt, user_prompt)
         if llm_answer:
-            return {"answer": llm_answer, "citations": citations, "grounded": True}
+            return {
+                "answer": llm_answer,
+                "citations": citations,
+                "grounded": True,
+                "llm_used": True,
+            }
 
         # Fallback sans LLM: synthèse factuelle
         summary = (
             f"Analyse basée sur {len(contexts)} sources indexées.\n\n"
             + "\n".join([f"* **{c['title']}** ({c['source']}): {c['content'][:180]}..." for c in contexts])
         )
-        return {"answer": summary, "citations": citations, "grounded": True}
+        return {
+            "answer": summary,
+            "citations": citations,
+            "grounded": False,
+            "llm_used": False,
+        }

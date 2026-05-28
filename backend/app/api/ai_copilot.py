@@ -7,12 +7,14 @@ from backend.app.database import get_db
 from backend.app.services.ai_agent import AIAgentService
 from backend.app.services.rag_service import RagService
 from backend.app.security import require_permissions, AuthContext
+from typing import Optional
+
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/copilot", tags=["AI Copilot & Chat"])
 
 class ChatRequest(BaseModel):
-    conversation_id: str = None
+    conversation_id: Optional[str] = None
     prompt: str
     use_rag: bool = True
 

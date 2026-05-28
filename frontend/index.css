@@ -1464,3 +1464,105 @@ header {
   color: hsl(240 5.9% 10%);
   border-color: hsl(240 5.9% 90%);
 }
+
+/* ——— Écran de connexion ——— */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 20, 0.88);
+  backdrop-filter: blur(12px);
+}
+
+.auth-overlay[hidden] {
+  display: none !important;
+}
+
+.auth-card {
+  width: min(420px, 92vw);
+  padding: 36px 32px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-glow);
+  box-shadow: 0 24px 80px var(--glass-shadow);
+}
+
+.auth-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  background: var(--grad-primary);
+  margin-bottom: 16px;
+}
+
+.auth-card h2 {
+  font-size: 1.35rem;
+  margin-bottom: 6px;
+}
+
+.auth-subtitle {
+  color: #718096;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.auth-form label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #a0aec0;
+  margin-bottom: 6px;
+  margin-top: 14px;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-tertiary);
+  color: inherit;
+  font-family: var(--font-sans);
+}
+
+.auth-error {
+  color: var(--accent-red);
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 20px;
+  justify-content: center;
+}
+
+.auth-sso {
+  width: 100%;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+[data-theme="shadcn"] .auth-overlay {
+  background: hsl(0 0% 100% / 0.75);
+}
+
+[data-theme="shadcn"] .auth-card {
+  background: hsl(0 0% 100%);
+  border-color: hsl(240 5.9% 90%);
+  box-shadow: 0 20px 50px hsl(240 4.8% 95.9% / 0.8);
+}
+
+[data-theme="shadcn"] .auth-form input {
+  background: hsl(0 0% 100%);
+  border-color: hsl(240 5.9% 90%);
+}

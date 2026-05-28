@@ -2,6 +2,150 @@
 const API_BASE = '/api/v1';
 
 class FinOpticaApp {
+  getAuthHeaders(extraHeaders = {}) {
+    const headers = { ...extraHeaders };
+    const token = localStorage.getItem('finoptica_token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  async apiFetch(path, options = {}) {
+    const headers = this.getAuthHeaders(options.headers || {});
+    const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    if (response.status === 401 && !path.startsWith('/auth/login')) {
+      this.logout(false);
+      this.showLoginOverlay('Session expirée. Reconnectez-vous.');
+    }
+    return response;
+  }
+
+  showLoginOverlay(message = '') {
+    const overlay = document.getElementById('auth-overlay');
+    const err = document.getElementById('login-error');
+    if (overlay) overlay.hidden = false;
+    if (err) {
+      if (message) {
+        err.textContent = message;
+        err.hidden = false;
+      } else {
+        err.hidden = true;
+        err.textContent = '';
+      }
+    }
+    document.getElementById('app-container')?.setAttribute('aria-hidden', 'true');
+  }
+
+  hideLoginOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (overlay) overlay.hidden = true;
+    const err = document.getElementById('login-error');
+    if (err) err.hidden = true;
+    document.getElementById('app-container')?.removeAttribute('aria-hidden');
+  }
+
+  async login(username, password) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Identifiants invalides.');
+    }
+    const data = await res.json();
+    localStorage.setItem('finoptica_token', data.token);
+    this.currentUser = data;
+    this.updateUserDisplay(data);
+    this.hideLoginOverlay();
+    return data;
+  }
+
+  logout(clearMessage = true) {
+    localStorage.removeItem('finoptica_token');
+    this.currentUser = null;
+    this.updateUserDisplay(null);
+    this.showLoginOverlay(clearMessage ? '' : 'Session expirée. Reconnectez-vous.');
+  }
+
+  updateUserDisplay(user) {
+    const nameEl = document.getElementById('user-display-name');
+    const roleEl = document.getElementById('user-display-role');
+    const avatarEl = document.getElementById('user-avatar');
+    if (!user) {
+      if (nameEl) nameEl.textContent = 'Non connecté';
+      if (roleEl) roleEl.textContent = '—';
+      if (avatarEl) avatarEl.textContent = '--';
+      return;
+    }
+    if (nameEl) nameEl.textContent = user.username;
+    if (roleEl) roleEl.textContent = user.role;
+    if (avatarEl) {
+      const initials = user.username.slice(0, 2).toUpperCase();
+      avatarEl.textContent = initials;
+    }
+  }
+
+  async validateSession() {
+    const token = localStorage.getItem('finoptica_token');
+    if (!token) return false;
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!res.ok) {
+      localStorage.removeItem('finoptica_token');
+      return false;
+    }
+    const data = await res.json();
+    localStorage.setItem('finoptica_token', data.token);
+    this.currentUser = data;
+    this.updateUserDisplay(data);
+    return true;
+  }
+
+  async requireAuth() {
+    this.captureTokenFromUrl();
+    if (await this.validateSession()) {
+      this.hideLoginOverlay();
+      return true;
+    }
+    this.showLoginOverlay();
+    return new Promise((resolve) => {
+      this._authResolve = resolve;
+    });
+  }
+
+  bindLoginUi() {
+    const form = document.getElementById('login-form');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username')?.value?.trim();
+        const password = document.getElementById('login-password')?.value || '';
+        const err = document.getElementById('login-error');
+        try {
+          await this.login(username, password);
+          if (this._authResolve) {
+            this._authResolve(true);
+            this._authResolve = null;
+          }
+          await this.bootstrapAppData();
+        } catch (loginErr) {
+          if (err) {
+            err.textContent = loginErr.message;
+            err.hidden = false;
+          }
+        }
+      });
+    }
+    const oidcOverlay = document.getElementById('btn-oidc-login-overlay');
+    if (oidcOverlay) oidcOverlay.addEventListener('click', () => this.startOidcLogin());
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.addEventListener('click', () => this.logout());
+  }
+
   constructor() {
     this.activeTab = 'dashboard-tab';
     this.currentConversationId = null;
@@ -36,7 +180,9 @@ class FinOpticaApp {
     }
 
     this.bindSettingsUi();
+    this.bindLoginUi();
     this.initThemeSwitcher();
+    this.currentUser = null;
     
     // Initialisation
     this.init();
@@ -131,14 +277,14 @@ class FinOpticaApp {
   }
 
   async startOidcLogin() {
-    const res = await fetch(`${API_BASE}/auth/oidc/login`);
+    const res = await this.apiFetch('/auth/oidc/login');
     const data = await res.json();
     if (data.authorization_url) window.location.href = data.authorization_url;
     else alert(data.detail || 'OIDC non configuré');
   }
 
   async reindexRag() {
-    const res = await fetch(`${API_BASE}/copilot/rag/reindex`, { method: 'POST' });
+    const res = await this.apiFetch('/copilot/rag/reindex', { method: 'POST' });
     const data = await res.json();
     alert(`RAG réindexé: ${data.documents_indexed} documents`);
   }
@@ -155,18 +301,22 @@ class FinOpticaApp {
     configField.value = templates[provider] || '{}';
   }
   
-  async init() {
-    console.log("Démarrage de FinOptica AI...");
+  async bootstrapAppData() {
     await this.loadPlatformStatus();
     await this.refreshData();
     await this.loadConversations();
-    
-    // Lancer une conversation par défaut si la liste est vide
     if (this.conversationList.length > 0) {
       this.selectConversation(this.conversationList[0].id);
     } else {
       this.startNewConversation();
     }
+  }
+
+  async init() {
+    console.log("Démarrage de FinOptica AI...");
+    const authenticated = await this.requireAuth();
+    if (!authenticated) return;
+    await this.bootstrapAppData();
   }
   
   switchTab(tabId) {
@@ -219,7 +369,7 @@ class FinOpticaApp {
 
   async loadPlatformStatus() {
     try {
-      const res = await fetch(`${API_BASE}/platform/status`);
+      const res = await this.apiFetch('/platform/status');
       const status = await res.json();
       const pill = document.getElementById('platform-mode-pill');
       if (pill) {
@@ -252,7 +402,7 @@ class FinOpticaApp {
     const container = document.getElementById('connectors-list');
     if (!container) return;
     try {
-      const res = await fetch(`${API_BASE}/connectors`);
+      const res = await this.apiFetch('/connectors');
       const connectors = await res.json();
       if (!connectors.length) {
         container.innerHTML = '<p style="color:#718096;">Aucune connexion cloud. Ajoutez AWS, Azure ou GCP.</p>';
@@ -292,7 +442,7 @@ class FinOpticaApp {
       alert('JSON de configuration invalide.');
       return;
     }
-    const res = await fetch(`${API_BASE}/connectors`, {
+    const res = await this.apiFetch('/connectors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, name, connector_type, config_json })
@@ -308,14 +458,14 @@ class FinOpticaApp {
   }
 
   async testConnector(id) {
-    const res = await fetch(`${API_BASE}/connectors/${id}/test`, { method: 'POST' });
+    const res = await this.apiFetch(`/connectors/${id}/test`, { method: 'POST' });
     const data = await res.json();
     alert(data.message || (data.success ? 'Test OK' : 'Test échoué'));
     await this.loadConnectors();
   }
 
   async syncConnector(id) {
-    const res = await fetch(`${API_BASE}/connectors/${id}/sync?days=30`, { method: 'POST' });
+    const res = await this.apiFetch(`/connectors/${id}/sync?days=30`, { method: 'POST' });
     const data = await res.json();
     alert(data.message || (data.success ? `Sync OK (${data.synced_items} items)` : 'Sync échouée'));
     await this.loadConnectors();
@@ -325,7 +475,7 @@ class FinOpticaApp {
 
   async deleteConnector(id) {
     if (!confirm('Supprimer cette connexion ?')) return;
-    await fetch(`${API_BASE}/connectors/${id}`, { method: 'DELETE' });
+    await this.apiFetch(`/connectors/${id}`, { method: 'DELETE' });
     await this.loadConnectors();
   }
 
@@ -334,7 +484,7 @@ class FinOpticaApp {
     this.selectedCsvFile = file;
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch(`${API_BASE}/data/import/preview`, { method: 'POST', body: form });
+    const res = await this.apiFetch('/data/import/preview', { method: 'POST', body: form });
     const preview = await res.json();
     const container = document.getElementById('csv-preview-container');
     if (container) {
@@ -353,7 +503,7 @@ class FinOpticaApp {
     }
     const form = new FormData();
     form.append('file', this.selectedCsvFile);
-    const res = await fetch(`${API_BASE}/data/import`, { method: 'POST', body: form });
+    const res = await this.apiFetch('/data/import', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) {
       alert(data.detail || 'Import échoué');
@@ -369,7 +519,7 @@ class FinOpticaApp {
     const container = document.getElementById('csv-history-container');
     if (!container) return;
     try {
-      const res = await fetch(`${API_BASE}/data/import/history`);
+      const res = await this.apiFetch('/data/import/history');
       const history = await res.json();
       if (!history.length) {
         container.innerHTML = '<p style="color:#718096;">Aucun import.</p>';
@@ -385,16 +535,25 @@ class FinOpticaApp {
     }
   }
 
-  exportCsv() {
-    window.open(`${API_BASE}/data/export/csv?days=30`, '_blank');
+  async exportCsv() {
+    const res = await this.apiFetch('/data/export/csv?days=30');
+    if (!res.ok) {
+      alert('Export CSV impossible.');
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'finoptica-costs-30d.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
-  
-  async refreshData() {
-  
+
   async refreshData() {
     try {
       // Charger le résumé financier global
-      const res = await fetch(`${API_BASE}/billing/summary`);
+      const res = await this.apiFetch('/billing/summary');
       const summary = await res.json();
 
       if (summary.total_cost === 0 && this.platformStatus && !this.platformStatus.demo_mode) {
@@ -427,7 +586,7 @@ class FinOpticaApp {
   // --- GRAPHIQUE DE TENDANCE DES COÛTS (SVG INTERACTIF DESSINÉ EN JS) ---
   async loadTrendChart() {
     try {
-      const res = await fetch(`${API_BASE}/billing/trend?days=30`);
+      const res = await this.apiFetch('/billing/trend?days=30');
       const data = await res.json();
       
       const container = document.getElementById('trend-chart-container');
@@ -528,7 +687,7 @@ class FinOpticaApp {
   // --- ANOMALIES ---
   async loadAnomalies() {
     try {
-      const res = await fetch(`${API_BASE}/billing/anomalies`);
+      const res = await this.apiFetch('/billing/anomalies');
       const anomalies = await res.json();
       
       const container = document.getElementById('anomalies-container');
@@ -574,7 +733,7 @@ class FinOpticaApp {
       const days = document.getElementById('explorer-days').value || 30;
       
       // Graphique de tendance du Cost Explorer (Graphique en barres totalisées)
-      const resTrend = await fetch(`${API_BASE}/billing/trend?days=${days}`);
+      const resTrend = await this.apiFetch(`/billing/trend?days=${days}`);
       const dataTrend = await resTrend.json();
       
       const container = document.getElementById('explorer-chart-container');
@@ -641,7 +800,7 @@ class FinOpticaApp {
       }
       
       // Répartition par Cloud (Barres horizontales)
-      const resProv = await fetch(`${API_BASE}/billing/providers?days=${days}`);
+      const resProv = await this.apiFetch(`/billing/providers?days=${days}`);
       const dataProv = await resProv.json();
       
       const provContainer = document.getElementById('explorer-providers-container');
@@ -685,7 +844,7 @@ class FinOpticaApp {
   // --- KUBERNETES PAGE ---
   async loadKubernetesData() {
     try {
-      const res = await fetch(`${API_BASE}/billing/kubernetes`);
+      const res = await this.apiFetch('/billing/kubernetes');
       const namespaces = await res.json();
       
       const tbody = document.getElementById('k8s-table-body');
@@ -745,7 +904,7 @@ class FinOpticaApp {
   // --- CENTRE DE RECOMMANDATIONS ---
   async loadRecommendations() {
     try {
-      const res = await fetch(`${API_BASE}/optimization/recommendations`);
+      const res = await this.apiFetch('/optimization/recommendations');
       const recoms = await res.json();
       
       const container = document.getElementById('recommendations-container');
@@ -848,7 +1007,7 @@ class FinOpticaApp {
     }
     
     try {
-      const res = await fetch(`${API_BASE}/optimization/recommendations/${recId}/apply`, { method: 'POST' });
+      const res = await this.apiFetch(`/optimization/recommendations/${recId}/apply`, { method: 'POST' });
       const data = await res.json();
       
       if (data.success) {
@@ -872,7 +1031,7 @@ class FinOpticaApp {
   
   async createGithubPr(recId) {
     try {
-      const res = await fetch(`${API_BASE}/automation/github/pr/${recId}`, { method: 'POST' });
+      const res = await this.apiFetch(`/automation/github/pr/${recId}`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         alert(`PR créée: ${data.pr_url}`);
@@ -892,7 +1051,7 @@ class FinOpticaApp {
     }
     
     try {
-      const res = await fetch(`${API_BASE}/optimization/recommendations/${recId}/rollback`, { method: 'POST' });
+      const res = await this.apiFetch(`/optimization/recommendations/${recId}/rollback`, { method: 'POST' });
       const data = await res.json();
       
       if (data.success) {
@@ -912,7 +1071,7 @@ class FinOpticaApp {
   // --- COPILOTE IA CONVERSATIONNEL ---
   async loadConversations() {
     try {
-      const res = await fetch(`${API_BASE}/copilot/conversations`);
+      const res = await this.apiFetch('/copilot/conversations');
       this.conversationList = await res.json();
       this.renderConversationList();
     } catch (err) {
@@ -954,8 +1113,8 @@ class FinOpticaApp {
     this.chatMessagesContainer.innerHTML = '';
     
     try {
-      const url = id ? `${API_BASE}/copilot/history/${id}` : `${API_BASE}/copilot/history/new`;
-      const res = await fetch(url);
+      const path = id ? `/copilot/history/${id}` : '/copilot/history/new';
+      const res = await this.apiFetch(path);
       const history = await res.json();
       
       if (history.length > 0 && !id) {
@@ -1059,7 +1218,7 @@ class FinOpticaApp {
     buttonEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Application...';
     
     try {
-      const res = await fetch(`${API_BASE}/optimization/recommendations/${recId}/apply`, { method: 'POST' });
+      const res = await this.apiFetch(`/optimization/recommendations/${recId}/apply`, { method: 'POST' });
       const data = await res.json();
       
       if (data.success) {
@@ -1099,7 +1258,7 @@ class FinOpticaApp {
     this.scrollToBottom();
     
     try {
-      const res = await fetch(`${API_BASE}/copilot/chat`, {
+      const res = await this.apiFetch('/copilot/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

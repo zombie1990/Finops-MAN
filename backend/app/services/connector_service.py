@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -201,7 +201,28 @@ class ConnectorService:
         return {"success": True, "message": "Connecteur supprime."}
 
     @staticmethod
-    def _persist_cost_rows(db: Session, tenant_id: str, rows: List[Dict]) -> int:
+    def _persist_cost_rows(
+        db: Session,
+        tenant_id: str,
+        rows: List[Dict],
+        provider: Optional[str] = None,
+    ) -> int:
+        if not rows:
+            return 0
+        dates = [row["date"] for row in rows if row.get("date") is not None]
+        if dates and provider:
+            min_date = min(dates)
+            max_date = max(dates)
+            (
+                db.query(CostItem)
+                .filter(
+                    CostItem.tenant_id == tenant_id,
+                    CostItem.provider == provider,
+                    CostItem.date >= min_date,
+                    CostItem.date <= max_date,
+                )
+                .delete(synchronize_session=False)
+            )
         count = 0
         for row in rows:
             item = CostItem(
@@ -261,7 +282,12 @@ class ConnectorService:
                     "message": connector.last_error,
                 }
 
-            synced_items = ConnectorService._persist_cost_rows(db, tenant_id, result.cost_rows)
+            synced_items = ConnectorService._persist_cost_rows(
+                db,
+                tenant_id,
+                result.cost_rows,
+                provider=connector.provider,
+            )
             connector.status = "Connected"
             connector.last_sync_items = synced_items
             connector.last_sync_at = datetime.utcnow()
