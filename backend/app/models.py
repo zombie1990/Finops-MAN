@@ -129,3 +129,116 @@ class Message(Base):
     metadata_json = Column(JSON, nullable=True)  # Graphiques, widgets à afficher
     
     conversation = relationship("Conversation", back_populates="messages")
+
+# ==========================================
+# PHASE 1 — NOUVEAUX MODÈLES ENTERPRISE
+# ==========================================
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)  # Montant total du budget
+    period = Column(String, default="monthly")  # monthly, quarterly, yearly
+    provider_filter = Column(String, nullable=True)  # AWS, Azure, GCP, All
+    service_filter = Column(String, nullable=True)  # Filtre par service spécifique
+    alert_threshold_warning = Column(Float, default=75.0)  # % seuil avertissement
+    alert_threshold_critical = Column(Float, default=90.0)  # % seuil critique
+    spent = Column(Float, default=0.0)  # Montant dépensé calculé
+    forecast = Column(Float, default=0.0)  # Prévision fin de période
+    status = Column(String, default="On Track")  # On Track, Warning, Critical, Exceeded
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AlertRule(Base):
+    __tablename__ = "alert_rules"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    alert_type = Column(String, nullable=False)  # cost_threshold, anomaly, budget_overrun, idle_resource, carbon
+    condition = Column(String, nullable=False)  # gt, lt, eq, spike
+    threshold_value = Column(Float, nullable=False)
+    provider_filter = Column(String, nullable=True)
+    service_filter = Column(String, nullable=True)
+    enabled = Column(Boolean, default=True)
+    notify_email = Column(Boolean, default=True)
+    notify_slack = Column(Boolean, default=False)
+    notify_webhook = Column(Boolean, default=False)
+    cooldown_minutes = Column(Integer, default=60)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AlertEvent(Base):
+    __tablename__ = "alert_events"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    rule_id = Column(String, ForeignKey("alert_rules.id"), nullable=False)
+    severity = Column(String, default="Medium")  # Low, Medium, High, Critical
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    current_value = Column(Float)
+    threshold_value = Column(Float)
+    status = Column(String, default="Active")  # Active, Acknowledged, Resolved
+    triggered_at = Column(DateTime, default=datetime.utcnow)
+    acknowledged_at = Column(DateTime, nullable=True)
+
+class Report(Base):
+    __tablename__ = "reports"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    report_type = Column(String, nullable=False)  # executive, technical, savings, carbon
+    title = Column(String, nullable=False)
+    status = Column(String, default="Generating")  # Generating, Ready, Failed
+    period_days = Column(Integer, default=30)
+    summary = Column(Text)
+    content_json = Column(JSON)  # Contenu structuré du rapport
+    generated_at = Column(DateTime, default=datetime.utcnow)
+    download_count = Column(Integer, default=0)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    action = Column(String, nullable=False)  # login, remediation_applied, budget_created, alert_acknowledged...
+    user = Column(String, default="admin")
+    resource_type = Column(String)  # recommendation, budget, alert, connector
+    resource_id = Column(String)
+    details = Column(Text)
+    ip_address = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+class ScanResult(Base):
+    __tablename__ = "scan_results"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    filename = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)  # csv, xlsx, pdf
+    status = Column(String, default="Processing")  # Processing, Completed, Failed
+    items_parsed = Column(Integer, default=0)
+    total_cost_detected = Column(Float, default=0.0)
+    providers_detected = Column(JSON)  # ["AWS", "Azure"]
+    results_json = Column(JSON)  # Résultats parsés détaillés
+    errors = Column(Text, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+class Connector(Base):
+    __tablename__ = "connectors"
+    
+    id = Column(String, primary_key=True, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    provider = Column(String, nullable=False)  # AWS, Azure, GCP, Kubernetes, Datadog, OpenAI, GitHub
+    name = Column(String, nullable=False)
+    connector_type = Column(String, nullable=False)  # billing_api, metrics_api, cost_export, log_stream
+    status = Column(String, default="Disconnected")  # Connected, Disconnected, Error, Syncing
+    config_json = Column(JSON)  # Configuration spécifique au connecteur
+    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_items = Column(Integer, default=0)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
