@@ -7,7 +7,21 @@ import os
 
 from backend.app.config import settings, validate_security_settings
 from backend.app.database import engine, Base
-from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion, platform, csv_io, automation, schedules
+from backend.app.api import (
+    auth,
+    billing,
+    optimization,
+    ai_copilot,
+    connectors,
+    reports,
+    ingestion,
+    platform,
+    csv_io,
+    automation,
+    schedules,
+    alerts,
+    policies,
+)
 from backend.app.workers.scheduler import start_scheduler, stop_scheduler
 
 # Initialiser la base de données (crée les tables si inexistantes)
@@ -51,6 +65,8 @@ app.include_router(platform.router, prefix=settings.API_V1_STR)
 app.include_router(csv_io.router, prefix=settings.API_V1_STR)
 app.include_router(automation.router, prefix=settings.API_V1_STR)
 app.include_router(schedules.router, prefix=settings.API_V1_STR)
+app.include_router(alerts.router, prefix=settings.API_V1_STR)
+app.include_router(policies.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

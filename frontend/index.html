@@ -48,6 +48,12 @@
           <span>FinOps Copilot</span>
         </div>
 
+        <div class="menu-label">Gouvernance FinOps</div>
+        <div class="menu-item" data-tab="governance-tab">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <span>Budgets & Allocation</span>
+        </div>
+
         <div class="menu-label">Configuration</div>
         <div class="menu-item" data-tab="settings-tab">
           <i class="fa-solid fa-sliders"></i>
@@ -232,7 +238,63 @@
         </div>
       </div>
 
-      <!-- PANNEAU 5 : PARAMÈTRES -->
+      <!-- PANNEAU 5 : GOUVERNANCE (Budget, Forecast, Showback) -->
+      <div id="governance-tab" class="section-container">
+        <div class="panel-header" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <h3 class="panel-title"><i class="fa-solid fa-scale-balanced"></i> Gouvernance FinOps Enterprise</h3>
+          <button type="button" class="btn btn-primary" id="btn-finops-analyze">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Lancer l'analyse IA FinOps
+          </button>
+        </div>
+
+        <div class="card-grid" id="budgets-container" style="margin-bottom:24px;"></div>
+
+        <div class="dashboard-layout" style="grid-template-columns: 1fr 1fr; gap:24px; margin-bottom:24px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-chart-line"></i> Prévision budgétaire</h3>
+            </div>
+            <div id="forecast-container" style="font-size:14px; color:#a0aec0; line-height:1.8;">Chargement...</div>
+            <div class="svg-chart-container" id="forecast-chart-container" style="height:200px; margin-top:16px;"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 class="panel-title"><i class="fa-solid fa-sitemap"></i> Showback / Chargeback</h3>
+              <select id="allocation-group-by" class="btn btn-secondary" style="padding:6px 12px;">
+                <option value="team">Équipe</option>
+                <option value="env">Environnement</option>
+                <option value="cost_center">Cost Center</option>
+                <option value="product">Produit</option>
+              </select>
+            </div>
+            <div id="allocation-container" style="display:flex; flex-direction:column; gap:12px; margin-top:12px;"></div>
+          </div>
+        </div>
+
+        <div class="dashboard-layout" style="grid-template-columns: 1fr 1fr 1fr; gap:24px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-shield-halved"></i> Policy-as-Code</h3>
+            </div>
+            <div id="policies-container" style="font-size:13px;">Chargement...</div>
+          </div>
+          <div class="panel">
+            <div class="panel-header" style="display:flex; justify-content:space-between;">
+              <h3 class="panel-title"><i class="fa-solid fa-bell"></i> Alertes FinOps</h3>
+              <button type="button" class="btn btn-secondary" id="btn-eval-alerts" style="font-size:11px;">Évaluer</button>
+            </div>
+            <div id="alerts-container" style="max-height:280px; overflow-y:auto;"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title"><i class="fa-solid fa-microchip"></i> GPU / IA Workloads</h3>
+            </div>
+            <div id="gpu-container" style="font-size:13px;">Chargement...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANNEAU 6 : PARAMÈTRES -->
       <div id="settings-tab" class="section-container">
         <div class="panel" style="margin-bottom:24px;">
           <div class="panel-header">

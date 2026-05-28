@@ -44,6 +44,16 @@ En `production`, l'application refuse de demarrer si:
 - `OPENAI_API_KEY` est `mock_key`
 - `ALLOW_ANONYMOUS_AUTH=true`
 
+## Version finale — guide de test
+
+**Guide pas à pas :** [`docs/TEST-VERSION-FINALE.md`](docs/TEST-VERSION-FINALE.md)
+
+```bash
+cp .env.example .env   # USE_DEMO_DATA=true pour tester immédiatement
+./run.sh
+# http://localhost:8000 — admin / finops2026
+```
+
 ## Lancement local
 
 ```bash

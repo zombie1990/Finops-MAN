@@ -11,7 +11,18 @@ from backend.app.models import AuditLog, CostItem, ScanResult, Tenant
 
 
 REQUIRED_COST_COLUMNS = {"date", "provider", "service", "cost"}
-OPTIONAL_COST_COLUMNS = {"account_id", "resource_id", "resource_name", "region", "usage_quantity", "usage_unit"}
+OPTIONAL_COST_COLUMNS = {
+    "account_id",
+    "resource_id",
+    "resource_name",
+    "region",
+    "usage_quantity",
+    "usage_unit",
+    "team",
+    "env",
+    "cost_center",
+    "product",
+}
 
 
 class CsvService:
@@ -99,7 +110,15 @@ class CsvService:
                             cost=cost_val,
                             usage_quantity=float(col("usage_quantity") or 0) if col("usage_quantity") else 0.0,
                             usage_unit=col("usage_unit") or None,
-                            tags={"source": "csv_import", "filename": filename},
+                            tags={
+                                "source": "csv_import",
+                                "filename": filename,
+                                **{
+                                    k: col(k)
+                                    for k in ("team", "env", "cost_center", "product")
+                                    if col(k)
+                                },
+                            },
                             carbon_emissions=round(cost_val * 0.08, 4),
                         )
                     )

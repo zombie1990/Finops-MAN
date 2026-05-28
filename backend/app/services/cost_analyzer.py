@@ -361,6 +361,10 @@ export COPILOT_LIGHTWEIGHT_MODEL="gpt-4o"
 
     @staticmethod
     def get_kubernetes_efficiency(db: Session, tenant_id: str):
+        from backend.app.services.k8s_cost_service import K8sCostService
+
+        if db.query(CostItem).filter(CostItem.tenant_id == tenant_id).count() > 0:
+            K8sCostService.sync_from_cost_items(db, tenant_id, days=7)
         # Récupérer l'efficacité des Namespaces Kubernetes sur les 7 derniers jours
         today = datetime.utcnow().date()
         start_date = datetime.combine(today - timedelta(days=7), datetime.min.time())

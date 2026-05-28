@@ -324,6 +324,12 @@ class FinOpticaApp {
     if (btnOidc) btnOidc.addEventListener('click', () => this.startOidcLogin());
     const btnRag = document.getElementById('btn-rag-reindex');
     if (btnRag) btnRag.addEventListener('click', () => this.reindexRag());
+    const btnAnalyze = document.getElementById('btn-finops-analyze');
+    if (btnAnalyze) btnAnalyze.addEventListener('click', () => this.runFinOpsAnalyze());
+    const btnEvalAlerts = document.getElementById('btn-eval-alerts');
+    if (btnEvalAlerts) btnEvalAlerts.addEventListener('click', () => this.evaluateAlerts());
+    const allocSelect = document.getElementById('allocation-group-by');
+    if (allocSelect) allocSelect.addEventListener('change', () => this.loadAllocation());
     this.updateConnectorConfigPlaceholder();
     this.captureTokenFromUrl();
   }
@@ -408,6 +414,7 @@ class FinOpticaApp {
       'kubernetes-tab': { title: 'Kubernetes Cost Metrics', desc: 'Optimisation de vos ressources de conteneurisation Kubernetes native.' },
       'optimization-tab': { title: 'Centre de Remédiation', desc: 'Plan d\'actions d\'économies prêtes pour exécution automatisée Terraform et kubectl.' },
       'copilot-tab': { title: 'FinOps AI Copilot', desc: 'Discutez avec votre agent d\'IA expert cloud et automatisez les corrections.' },
+      'governance-tab': { title: 'Gouvernance FinOps', desc: 'Budgets, prévisions, showback/chargeback et analyse continue (FinOps Foundation).' },
       'settings-tab': { title: 'Configuration', desc: 'Connectez AWS, Azure, GCP et importez vos données FinOps réelles.' }
     };
     
@@ -423,8 +430,216 @@ class FinOpticaApp {
       this.loadKubernetesData();
     } else if (tabId === 'optimization-tab') {
       this.loadRecommendations();
+    } else if (tabId === 'governance-tab') {
+      this.loadGovernancePanel();
     } else if (tabId === 'settings-tab') {
       this.loadSettingsPanel();
+    }
+  }
+
+  async loadGovernancePanel() {
+    await Promise.all([
+      this.loadBudgets(),
+      this.loadForecast(),
+      this.loadAllocation(),
+      this.loadPolicies(),
+      this.loadAlerts(),
+      this.loadGpuAnalytics(),
+    ]);
+  }
+
+  async loadBudgets() {
+    const container = document.getElementById('budgets-container');
+    if (!container) return;
+    try {
+      const res = await this.apiFetch('/billing/budgets');
+      const budgets = await res.json();
+      if (!budgets.length) {
+        container.innerHTML = '<p style="color:#718096;">Aucun budget configuré.</p>';
+        return;
+      }
+      const statusColors = { 'On Track': 'var(--accent-green)', Warning: 'var(--accent-orange)', Critical: 'var(--accent-red)', Exceeded: 'var(--accent-red)' };
+      container.innerHTML = budgets.map(b => `
+        <div class="card">
+          <div class="card-header-icon">
+            <span class="card-label">${b.name}</span>
+            <span class="severity-pill ${b.status === 'On Track' ? 'low' : 'high'}">${b.status}</span>
+          </div>
+          <div class="card-value">${b.spent.toLocaleString()} $ / ${b.amount.toLocaleString()} $</div>
+          <div class="card-change" style="color:${statusColors[b.status] || '#a0aec0'}">
+            Prévision fin de mois : ${b.forecast.toLocaleString()} $ (${b.forecast_pct}%)
+          </div>
+          <div style="margin-top:10px; height:6px; background:#2d3748; border-radius:4px; overflow:hidden;">
+            <div class="progress-bar-fill" style="width:${Math.min(b.utilization_pct, 100)}%; background:${statusColors[b.status]}"></div>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<p>${err.message}</p>`;
+    }
+  }
+
+  async loadForecast() {
+    const info = document.getElementById('forecast-container');
+    const chart = document.getElementById('forecast-chart-container');
+    if (!info) return;
+    try {
+      const res = await this.apiFetch('/billing/forecast?days=30');
+      const data = await res.json();
+      info.innerHTML = `
+        <p><strong>Run-rate journalier :</strong> ${data.daily_run_rate.toLocaleString()} $</p>
+        <p><strong>Projection fin de mois :</strong> ${data.month_end_projection.toLocaleString()} $</p>
+        <p><strong>Tendance :</strong> ${data.trend_pct >= 0 ? '+' : ''}${data.trend_pct}%</p>
+        <p><strong>Méthode :</strong> ${data.method}</p>
+      `;
+      if (chart && data.historical?.length) {
+        const points = [...data.historical, ...(data.forecast || [])];
+        const max = Math.max(...points.map(p => p.cost), 1);
+        const w = chart.clientWidth || 400;
+        const h = 180;
+        const pad = 40;
+        const step = (w - pad * 2) / Math.max(points.length - 1, 1);
+        let path = '';
+        points.forEach((p, i) => {
+          const x = pad + i * step;
+          const y = h - pad - (p.cost / max) * (h - pad * 2);
+          path += (i === 0 ? 'M' : 'L') + ` ${x},${y}`;
+        });
+        chart.innerHTML = `<svg width="${w}" height="${h}"><path class="chart-line" d="${path}" stroke="${this.isMonochromeTheme() ? '#1a1a1a' : 'var(--accent-blue)'}"/><text class="chart-text" x="${pad}" y="${h - 8}">Historique → Projection</text></svg>`;
+      }
+    } catch (err) {
+      info.textContent = err.message;
+    }
+  }
+
+  async loadAllocation() {
+    const container = document.getElementById('allocation-container');
+    const groupBy = document.getElementById('allocation-group-by')?.value || 'team';
+    if (!container) return;
+    try {
+      const res = await this.apiFetch(`/billing/allocation?group_by=${groupBy}&days=30`);
+      const data = await res.json();
+      if (!data.allocations?.length) {
+        container.innerHTML = '<p style="color:#718096;">Aucune allocation (tags manquants sur les coûts).</p>';
+        return;
+      }
+      const colors = this.getProviderChartColors();
+      const shades = Object.values(colors);
+      container.innerHTML = data.allocations.map((row, i) => {
+        const fill = shades[i % shades.length];
+        return `
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">
+              <span style="font-weight:600;">${row.label}</span>
+              <span>${row.cost.toLocaleString()} $ (${row.share_pct}%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width:${row.share_pct}%; background:${fill}"></div>
+            </div>
+            <div style="font-size:11px; color:#718096; margin-top:4px;">🌱 ${row.carbon_kg.toLocaleString()} kg CO₂</div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<p>${err.message}</p>`;
+    }
+  }
+
+  async loadPolicies() {
+    const container = document.getElementById('policies-container');
+    if (!container) return;
+    try {
+      const res = await this.apiFetch('/policies/evaluate?days=30', { method: 'POST' });
+      const data = await res.json();
+      container.innerHTML = `
+        <p style="margin-bottom:12px;"><strong>Score conformité:</strong> ${data.compliance_score}% (${data.passed}/${data.total_policies})</p>
+        ${data.policies.map(p => `
+          <div class="anomaly-item" style="margin-bottom:8px; padding:10px;">
+            <span class="severity-pill ${p.compliant ? 'low' : 'high'}">${p.compliant ? 'OK' : 'KO'}</span>
+            <strong style="margin-left:8px;">${p.name}</strong>
+            <p style="font-size:12px; color:#718096; margin-top:4px;">${p.description}</p>
+          </div>
+        `).join('')}
+      `;
+    } catch (err) {
+      container.textContent = err.message;
+    }
+  }
+
+  async loadAlerts() {
+    const container = document.getElementById('alerts-container');
+    if (!container) return;
+    try {
+      const res = await this.apiFetch('/alerts/events');
+      const events = await res.json();
+      if (!events.length) {
+        container.innerHTML = '<p style="color:#718096; padding:12px;">Aucune alerte active.</p>';
+        return;
+      }
+      container.innerHTML = events.map(e => `
+        <div class="anomaly-item" style="margin-bottom:8px;">
+          <span class="severity-pill ${e.severity.toLowerCase()}">${e.severity}</span>
+          <strong>${e.title}</strong>
+          <p style="font-size:12px;">${e.description || ''} — ${e.triggered_at}</p>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.textContent = err.message;
+    }
+  }
+
+  async evaluateAlerts() {
+    await this.apiFetch('/alerts/evaluate', { method: 'POST' });
+    await this.loadAlerts();
+  }
+
+  async loadGpuAnalytics() {
+    const container = document.getElementById('gpu-container');
+    if (!container) return;
+    try {
+      const res = await this.apiFetch('/billing/gpu?days=30');
+      const data = await res.json();
+      if (!data.workloads?.length) {
+        container.innerHTML = '<p style="color:#718096;">Aucun workload GPU/IA détecté.</p>';
+        return;
+      }
+      container.innerHTML = `
+        <p><strong>Coût GPU/IA:</strong> ${data.total_gpu_ai_cost.toLocaleString()} $ (${data.share_of_cloud_pct || 0}% du cloud)</p>
+        ${data.workloads.slice(0, 6).map(w => `
+          <div style="padding:8px 0; border-bottom:1px solid #2d3748;">
+            <strong>${w.service}</strong> (${w.provider}) — ${w.cost.toLocaleString()} $
+            <div style="font-size:11px; color:#718096;">${w.optimization_hint}</div>
+          </div>
+        `).join('')}
+      `;
+    } catch (err) {
+      container.textContent = err.message;
+    }
+  }
+
+  async runFinOpsAnalyze() {
+    try {
+      const res = await this.apiFetch('/billing/finops/analyze', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || 'Analyse impossible');
+        return;
+      }
+      alert(
+        `Analyse terminée:\n` +
+        `• Anomalies: ${data.anomalies_detected}\n` +
+        `• Rightsizing: ${data.rightsizing_created}\n` +
+        `• Savings Plans: ${data.savings_plans_created}\n` +
+        `• Spot K8s: ${data.spot_hints_created}\n` +
+        `• GPU: ${data.gpu_hints_created || 0}\n` +
+        `• K8s sync: ${data.k8s_rows_synced || 0}\n` +
+        `• Alertes: ${data.alerts_fired || 0}`
+      );
+      await this.loadGovernancePanel();
+      await this.loadRecommendations();
+      await this.refreshData();
+    } catch (err) {
+      alert(err.message);
     }
   }
 
@@ -444,6 +659,9 @@ class FinOpticaApp {
           <p><strong>Mode données:</strong> ${status.data_mode}</p>
           <p><strong>Enregistrements de coûts:</strong> ${status.cost_records}</p>
           <p><strong>Connecteurs actifs:</strong> ${status.connectors_connected} / ${status.connectors_total}</p>
+          <p><strong>Recommandations en attente:</strong> ${status.pending_recommendations ?? '—'}</p>
+          <p><strong>Anomalies ouvertes:</strong> ${status.unresolved_anomalies ?? '—'}</p>
+          <p><strong>Conformité FinOps:</strong> ${status.finops_compliance_score != null ? status.finops_compliance_score + '%' : '—'}</p>
           <p>${status.message}</p>
         `;
       }
@@ -1015,8 +1233,11 @@ class FinOpticaApp {
                           <i class="fa-solid fa-undo"></i> Revenir à la config d'origine (Rollback)
                         </button>
                       ` : `
-                        <button class="btn btn-primary" onclick="app.applyRemediation('${r.id}')">
-                          <i class="fa-solid fa-play"></i> Appliquer la remédiation (IaC/CLI)
+                        <button class="btn btn-secondary" onclick="app.dryRunRemediation('${r.id}')">
+                          <i class="fa-solid fa-clipboard-check"></i> Dry-run
+                        </button>
+                        <button class="btn btn-primary" style="margin-left:8px;" onclick="app.applyRemediation('${r.id}')">
+                          <i class="fa-solid fa-play"></i> Appliquer (IaC/CLI)
                         </button>
                         <button class="btn btn-secondary" style="margin-left:8px;" onclick="app.createGithubPr('${r.id}')">
                           <i class="fa-brands fa-github"></i> Créer PR GitHub
@@ -1046,6 +1267,23 @@ class FinOpticaApp {
     }
   }
   
+  async dryRunRemediation(recId) {
+    const logPanel = document.getElementById(`output-log-${recId}`);
+    if (logPanel) {
+      logPanel.classList.add('active');
+      logPanel.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dry-run en cours...';
+    }
+    try {
+      const res = await this.apiFetch(`/optimization/recommendations/${recId}/dry-run`, { method: 'POST' });
+      const data = await res.json();
+      if (logPanel) {
+        logPanel.innerHTML = (data.steps || []).join('\n') + '\n\n' + (data.risks?.length ? 'Risques: ' + data.risks.join(' ') : '');
+      }
+    } catch (err) {
+      if (logPanel) logPanel.innerHTML = `⚠️ ${err.message}`;
+    }
+  }
+
   async applyRemediation(recId) {
     const logPanel = document.getElementById(`output-log-${recId}`);
     if (logPanel) {
@@ -1056,6 +1294,11 @@ class FinOpticaApp {
     try {
       const res = await this.apiFetch(`/optimization/recommendations/${recId}/apply`, { method: 'POST' });
       const data = await res.json();
+      
+      if (!res.ok) {
+        if (logPanel) logPanel.innerHTML = data.detail || 'Échec apply';
+        return;
+      }
       
       if (data.success) {
         // Simuler le défilement progressif du log de déploiement

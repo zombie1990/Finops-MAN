@@ -4,6 +4,7 @@ from backend.app.database import get_db
 from backend.app.models import Recommendation
 from backend.app.security import require_permissions, AuthContext
 from backend.app.services.recommendation_service import RecommendationService
+from backend.app.services.remediation_service import RemediationService
 
 router = APIRouter(prefix="/optimization", tags=["Optimization & Actions"])
 
@@ -34,30 +35,29 @@ def get_recommendations(
         } for r in recs
     ]
 
+@router.post("/recommendations/{rec_id}/dry-run")
+def dry_run_recommendation(
+    rec_id: str,
+    ctx: AuthContext = Depends(require_permissions("optimization:read")),
+    db: Session = Depends(get_db),
+):
+    result = RemediationService.dry_run(db, ctx.tenant_id, rec_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
 @router.post("/recommendations/{rec_id}/apply")
 def apply_recommendation(
     rec_id: str,
+    force: bool = False,
     ctx: AuthContext = Depends(require_permissions("optimization:write")),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    rec = db.query(Recommendation).filter(
-        Recommendation.tenant_id == ctx.tenant_id,
-        Recommendation.id == rec_id
-    ).first()
-    
-    if not rec:
-        raise HTTPException(status_code=404, detail="Recommandation introuvable.")
-        
-    # Simuler le déploiement et l'application automatique (Terraform plan/apply, bash, kubectl...)
-    rec.status = "Applied"
-    db.commit()
-    
-    return {
-        "success": True,
-        "message": f"Remédiation {rec_id} appliquée avec succès !",
-        "applied_script_type": rec.remediation_script_type,
-        "output": f"[FINOPS ENGINE] Commande lancée en mode sécurisé.\n[DRY-RUN] Validation réussie.\n[EXECUTION] Application du script {rec.remediation_script_type} terminée sans erreur.\n[VERIFICATION] Ressource modifiée en cours de synchronisation."
-    }
+    result = RemediationService.apply(db, ctx.tenant_id, ctx.username, rec_id, force=force)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
 
 @router.post("/recommendations/{rec_id}/rollback")
 def rollback_recommendation(

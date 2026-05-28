@@ -305,6 +305,12 @@ class ConnectorService:
                 )
             )
             db.commit()
+            try:
+                from backend.app.services.finops_engine import FinOpsEngine
+
+                FinOpsEngine.run_full_analysis(db, tenant_id)
+            except Exception:
+                pass
             return {
                 "success": True,
                 "connector_id": connector.id,

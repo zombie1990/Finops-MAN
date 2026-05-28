@@ -2,12 +2,14 @@ from datetime import datetime, timedelta
 import random
 from sqlalchemy.orm import Session
 from backend.app.config import settings
-from backend.app.models import CostItem, Anomaly
+from backend.app.models import Anomaly
+from backend.app.services.finops_engine import FinOpsEngine
 
 class AnomalyDetectorService:
     @staticmethod
     def detect_and_save_anomalies(db: Session, tenant_id: str):
         if not settings.USE_DEMO_DATA:
+            FinOpsEngine.detect_anomalies_from_costs(db, tenant_id)
             return
         # Vérifier si des anomalies ont déjà été enregistrées
         existing_count = db.query(Anomaly).filter(Anomaly.tenant_id == tenant_id).count()
