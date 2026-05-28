@@ -67,7 +67,34 @@ class FinOpticaApp {
     if (btnImport) btnImport.addEventListener('click', () => this.importCsvFile());
     const btnExport = document.getElementById('btn-csv-export');
     if (btnExport) btnExport.addEventListener('click', () => this.exportCsv());
+    const btnOidc = document.getElementById('btn-oidc-login');
+    if (btnOidc) btnOidc.addEventListener('click', () => this.startOidcLogin());
+    const btnRag = document.getElementById('btn-rag-reindex');
+    if (btnRag) btnRag.addEventListener('click', () => this.reindexRag());
     this.updateConnectorConfigPlaceholder();
+    this.captureTokenFromUrl();
+  }
+
+  captureTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('finoptica_token', token);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }
+
+  async startOidcLogin() {
+    const res = await fetch(`${API_BASE}/auth/oidc/login`);
+    const data = await res.json();
+    if (data.authorization_url) window.location.href = data.authorization_url;
+    else alert(data.detail || 'OIDC non configuré');
+  }
+
+  async reindexRag() {
+    const res = await fetch(`${API_BASE}/copilot/rag/reindex`, { method: 'POST' });
+    const data = await res.json();
+    alert(`RAG réindexé: ${data.documents_indexed} documents`);
   }
 
   updateConnectorConfigPlaceholder() {
@@ -739,6 +766,9 @@ class FinOpticaApp {
                         <button class="btn btn-primary" onclick="app.applyRemediation('${r.id}')">
                           <i class="fa-solid fa-play"></i> Appliquer la remédiation (IaC/CLI)
                         </button>
+                        <button class="btn btn-secondary" style="margin-left:8px;" onclick="app.createGithubPr('${r.id}')">
+                          <i class="fa-brands fa-github"></i> Créer PR GitHub
+                        </button>
                       `}
                     </div>
                     <!-- Panneau de Log d'exécution en arrière-plan -->
@@ -794,6 +824,20 @@ class FinOpticaApp {
     }
   }
   
+  async createGithubPr(recId) {
+    try {
+      const res = await fetch(`${API_BASE}/automation/github/pr/${recId}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`PR créée: ${data.pr_url}`);
+      } else {
+        alert(data.detail || data.message || 'Echec création PR');
+      }
+    } catch (err) {
+      alert(`Erreur PR GitHub: ${err.message}`);
+    }
+  }
+
   async rollbackRemediation(recId) {
     const logPanel = document.getElementById(`output-log-${recId}`);
     if (logPanel) {

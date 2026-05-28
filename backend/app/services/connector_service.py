@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.connectors.base import CloudSyncResult
 from backend.app.connectors.factory import sync_cloud_connector, test_cloud_connector
-from backend.app.models import AuditLog, CloudAccount, Connector, CostItem, Tenant
+from backend.app.config import settings
+from backend.app.models import AuditLog, CloudAccount, Connector, CostItem, SyncSchedule, Tenant
 
 
 def _redact_config(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -123,6 +124,16 @@ class ConnectorService:
         else:
             connector.status = "Connected"
 
+        db.add(
+            SyncSchedule(
+                id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
+                connector_id=connector_id,
+                enabled=True,
+                interval_minutes=settings.SYNC_DEFAULT_INTERVAL_MINUTES,
+                next_run_at=datetime.utcnow(),
+            )
+        )
         db.add(
             AuditLog(
                 tenant_id=tenant_id,

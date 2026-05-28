@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from backend.app.config import settings
 from backend.app.security import create_access_token, get_auth_context, AuthContext
+from backend.app.services.oidc_service import OidcService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -43,3 +45,21 @@ def get_me(ctx: AuthContext = Depends(get_auth_context)):
         role=ctx.role,
         token=ctx.token,
     )
+
+
+@router.get("/oidc/login")
+def oidc_login():
+    try:
+        data = OidcService.get_authorization_url()
+        return data
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/oidc/callback")
+def oidc_callback(code: str = Query(...), state: str = Query(...)):
+    try:
+        data = OidcService.exchange_code(code, state)
+        return RedirectResponse(url=f"/?token={data['token']}")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

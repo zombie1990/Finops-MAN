@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .DS_Store
 finoptica_dev.db
+web/node_modules/
+frontend/dist/
+node_modules/

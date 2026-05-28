@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,16 +7,26 @@ import os
 
 from backend.app.config import settings, validate_security_settings
 from backend.app.database import engine, Base
-from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion, platform, csv_io
+from backend.app.api import auth, billing, optimization, ai_copilot, connectors, reports, ingestion, platform, csv_io, automation, schedules
+from backend.app.workers.scheduler import start_scheduler, stop_scheduler
 
-# Initialiser la base de données SQLite en dev (crée les tables si inexistantes)
+# Initialiser la base de données (crée les tables si inexistantes)
 validate_security_settings()
 Base.metadata.create_all(bind=engine)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.PROJECT_VERSION,
-    description="SaaS Enterprise FinOps piloté par l'Intelligence Artificielle"
+    description="SaaS Enterprise FinOps piloté par l'Intelligence Artificielle",
+    lifespan=lifespan,
 )
 
 # Configurer les CORS pour le développement
@@ -38,6 +49,8 @@ app.include_router(reports.router, prefix=settings.API_V1_STR)
 app.include_router(ingestion.router, prefix=settings.API_V1_STR)
 app.include_router(platform.router, prefix=settings.API_V1_STR)
 app.include_router(csv_io.router, prefix=settings.API_V1_STR)
+app.include_router(automation.router, prefix=settings.API_V1_STR)
+app.include_router(schedules.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health")

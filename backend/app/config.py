@@ -30,6 +30,24 @@ class Settings:
     # Ingestion & Connecteurs
     INGESTION_BATCH_SIZE: int = 5000
     CACHE_EXPIRATION_SECONDS: int = 3600
+    SYNC_SCHEDULER_ENABLED: bool = os.getenv("SYNC_SCHEDULER_ENABLED", "true").lower() == "true"
+    SYNC_DEFAULT_INTERVAL_MINUTES: int = int(os.getenv("SYNC_DEFAULT_INTERVAL_MINUTES", "360"))
+
+    # OIDC / SSO (Azure AD, Okta, Auth0, Keycloak)
+    OIDC_ENABLED: bool = os.getenv("OIDC_ENABLED", "false").lower() == "true"
+    OIDC_ISSUER: str = os.getenv("OIDC_ISSUER", "")
+    OIDC_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "")
+    OIDC_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "")
+    OIDC_REDIRECT_URI: str = os.getenv("OIDC_REDIRECT_URI", "http://localhost:8000/api/v1/auth/oidc/callback")
+    OIDC_SCOPES: str = os.getenv("OIDC_SCOPES", "openid profile email")
+
+    # Redis (cache optionnel)
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
+
+    # GitHub automation (PR remédiation)
+    GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+    GITHUB_REPO: str = os.getenv("GITHUB_REPO", "")  # org/repo
+    GITHUB_BASE_BRANCH: str = os.getenv("GITHUB_BASE_BRANCH", "main")
 
 settings = Settings()
 

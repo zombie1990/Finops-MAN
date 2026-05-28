@@ -17,6 +17,9 @@ class PlatformService:
             .order_by(ScanResult.uploaded_at.desc())
             .first()
         )
+        from backend.app.services.oidc_service import OidcService
+        from backend.app.services.github_automation_service import GitHubAutomationService
+
         return {
             "environment": settings.APP_ENV,
             "demo_mode": settings.USE_DEMO_DATA,
@@ -26,6 +29,10 @@ class PlatformService:
             "connectors_connected": len(connected),
             "has_real_data": int(cost_count) > 0 and not settings.USE_DEMO_DATA,
             "last_csv_import": last_import.uploaded_at.strftime("%Y-%m-%d %H:%M") if last_import else None,
+            "oidc_enabled": OidcService.is_enabled(),
+            "github_automation": GitHubAutomationService.is_configured(),
+            "sync_scheduler": settings.SYNC_SCHEDULER_ENABLED,
+            "database": "postgresql" if settings.DATABASE_URL.startswith("postgresql") else "sqlite",
             "message": (
                 "Mode demonstration actif (donnees fictives possibles)."
                 if settings.USE_DEMO_DATA

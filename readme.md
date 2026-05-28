@@ -57,6 +57,17 @@ cd backend
 python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Enterprise (phase 2)
+
+- **PostgreSQL + Alembic**: `alembic upgrade head`
+- **OIDC SSO**: `/api/v1/auth/oidc/login`
+- **Sync planifiee**: APScheduler (connecteurs cloud)
+- **RAG production**: retrieval + OpenAI + anti-hallucination
+- **GitHub PR**: `/api/v1/automation/github/pr/{recommendation_id}`
+- **Frontend React**: dossier `web/` (Vite + React + Tailwind)
+
+Guide: `docs/enterprise-production-setup.md`
+
 ## Mode production (donnees reelles)
 
 - Par defaut: `USE_DEMO_DATA=false` (plus de seed fictif automatique).
