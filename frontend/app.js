@@ -36,9 +36,55 @@ class FinOpticaApp {
     }
 
     this.bindSettingsUi();
+    this.initThemeSwitcher();
     
     // Initialisation
     this.init();
+  }
+
+  initThemeSwitcher() {
+    this.THEMES = {
+      finoptica: { label: 'shadcn/ui', icon: 'fa-swatchbook', next: 'shadcn' },
+      shadcn: { label: 'FinOptica', icon: 'fa-bolt', next: 'finoptica' },
+    };
+    this.currentTheme = document.documentElement.getAttribute('data-theme') || 'finoptica';
+    const btn = document.getElementById('theme-toggle');
+    if (btn) {
+      btn.addEventListener('click', () => this.toggleTheme());
+    }
+    this.updateThemeToggleUi();
+  }
+
+  getTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'finoptica';
+  }
+
+  setTheme(theme) {
+    const next = theme === 'shadcn' ? 'shadcn' : 'finoptica';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('finoptica_theme', next);
+    this.currentTheme = next;
+    this.updateThemeToggleUi();
+  }
+
+  toggleTheme() {
+    const current = this.getTheme();
+    const meta = this.THEMES[current] || this.THEMES.finoptica;
+    this.setTheme(meta.next);
+  }
+
+  updateThemeToggleUi() {
+    const current = this.getTheme();
+    const meta = this.THEMES[current] || this.THEMES.finoptica;
+    const label = document.getElementById('theme-toggle-label');
+    const icon = document.getElementById('theme-toggle-icon');
+    if (label) label.textContent = meta.label;
+    if (icon) {
+      icon.className = `fa-solid ${meta.icon}`;
+    }
+    document.title = current === 'shadcn'
+      ? 'FinOptica — shadcn/ui'
+      : 'FinOptica AI — SaaS Enterprise Cloud Cost Optimization';
   }
 
   bindSettingsUi() {

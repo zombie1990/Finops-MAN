@@ -7,6 +7,12 @@
   <!-- Google Fonts & FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="index.css">
+  <script>
+    (function () {
+      var t = localStorage.getItem('finoptica_theme') || 'finoptica';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body>
   <div id="app-container">
@@ -70,6 +76,10 @@
           <div class="tenant-pill" id="platform-mode-pill">Production</div>
           <button class="btn btn-secondary" onclick="app.refreshData()">
             <i class="fa-solid fa-rotate"></i> Synchroniser
+          </button>
+          <button type="button" id="theme-toggle" class="theme-toggle-btn" title="Basculer entre FinOptica et shadcn/ui">
+            <i class="fa-solid fa-swatchbook" id="theme-toggle-icon"></i>
+            <span id="theme-toggle-label">shadcn/ui</span>
           </button>
         </div>
       </header>
