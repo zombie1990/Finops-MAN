@@ -190,9 +190,10 @@ class FinOpticaApp {
 
   initThemeSwitcher() {
     this.THEMES = {
-      finoptica: { label: 'shadcn/ui', icon: 'fa-swatchbook', next: 'shadcn' },
+      finoptica: { label: 'black&white', icon: 'fa-circle-half-stroke', next: 'shadcn' },
       shadcn: { label: 'FinOptica', icon: 'fa-bolt', next: 'finoptica' },
     };
+    this.MONOCHROME_SHADES = ['#050505', '#1a1a1a', '#333333', '#525252', '#737373', '#a3a3a3', '#c4c4c4', '#e8e8e8'];
     this.currentTheme = document.documentElement.getAttribute('data-theme') || 'finoptica';
     const btn = document.getElementById('theme-toggle');
     if (btn) {
@@ -211,6 +212,66 @@ class FinOpticaApp {
     localStorage.setItem('finoptica_theme', next);
     this.currentTheme = next;
     this.updateThemeToggleUi();
+    if (localStorage.getItem('finoptica_token')) {
+      this.refreshData();
+      if (this.activeTab === 'explorer-tab') {
+        this.loadExplorerData();
+      }
+    }
+  }
+
+  isMonochromeTheme() {
+    return this.getTheme() === 'shadcn';
+  }
+
+  getProviderChartColors() {
+    const providers = ['AWS', 'Azure', 'GCP', 'OpenAI'];
+    if (this.isMonochromeTheme()) {
+      const map = {};
+      providers.forEach((prov, index) => {
+        map[prov] = this.MONOCHROME_SHADES[index % this.MONOCHROME_SHADES.length];
+      });
+      map.Other = this.MONOCHROME_SHADES[5];
+      return map;
+    }
+    return {
+      AWS: 'var(--accent-blue)',
+      Azure: 'var(--accent-purple)',
+      GCP: 'var(--accent-orange)',
+      OpenAI: 'var(--accent-green)',
+      Other: 'var(--accent-blue)',
+    };
+  }
+
+  getAreaChartGradientMarkup(gradientId = 'area-grad') {
+    if (this.isMonochromeTheme()) {
+      return `
+          <defs>
+            <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0a0a0a" stop-opacity="0.4"/>
+              <stop offset="45%" stop-color="#6b6b6b" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#e8e8e8" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="${gradientId}-stroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#050505"/>
+              <stop offset="50%" stop-color="#525252"/>
+              <stop offset="100%" stop-color="#a3a3a3"/>
+            </linearGradient>
+          </defs>
+        `;
+    }
+    return `
+          <defs>
+            <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent-blue)" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="var(--accent-purple)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        `;
+  }
+
+  getAreaChartStrokeRef(gradientId = 'area-grad') {
+    return this.isMonochromeTheme() ? `url(#${gradientId}-stroke)` : `url(#${gradientId})`;
   }
 
   toggleTheme() {
@@ -229,7 +290,7 @@ class FinOpticaApp {
       icon.className = `fa-solid ${meta.icon}`;
     }
     document.title = current === 'shadcn'
-      ? 'FinOptica — shadcn/ui'
+      ? 'FinOptica — black&white'
       : 'FinOptica AI — SaaS Enterprise Cloud Cost Optimization';
   }
 
@@ -627,12 +688,7 @@ class FinOpticaApp {
       const step = chartWidth / (data.length - 1 || 1);
       
       const providers = ['AWS', 'Azure', 'GCP', 'OpenAI'];
-      const colors = {
-        'AWS': 'var(--accent-blue)',
-        'Azure': 'var(--accent-purple)',
-        'GCP': 'var(--accent-orange)',
-        'OpenAI': 'var(--accent-green)'
-      };
+      const colors = this.getProviderChartColors();
       
       data.forEach((day, index) => {
         const x = paddingLeft + index * step - barWidth / 2;
@@ -784,15 +840,10 @@ class FinOpticaApp {
         const pathData = `M ${points.join(' L ')}`;
         const areaData = `${pathData} L ${paddingLeft + chartWidth},${height - paddingBottom} L ${paddingLeft},${height - paddingBottom} Z`;
         
+        svgContent += this.getAreaChartGradientMarkup('explorer-area-grad');
         svgContent += `
-          <defs>
-            <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--accent-blue)" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="var(--accent-purple)" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <path class="chart-area" d="${areaData}" fill="url(#area-grad)" />
-          <path class="chart-line" d="${pathData}" stroke="url(#area-grad)" />
+          <path class="chart-area" d="${areaData}" fill="url(#explorer-area-grad)" />
+          <path class="chart-line" d="${pathData}" stroke="${this.getAreaChartStrokeRef('explorer-area-grad')}" />
         `;
         
         svgContent += `</svg>`;
@@ -809,21 +860,17 @@ class FinOpticaApp {
         
         const totalAmount = dataProv.reduce((sum, item) => sum + item.cost, 0);
         
-        const colors = {
-          'AWS': 'var(--accent-blue)',
-          'Azure': 'var(--accent-purple)',
-          'GCP': 'var(--accent-orange)',
-          'OpenAI': 'var(--accent-green)'
-        };
+        const colors = this.getProviderChartColors();
+        const labelColor = this.isMonochromeTheme() ? '#0a0a0a' : '#fff';
         
-        dataProv.forEach(item => {
+        dataProv.forEach((item, index) => {
           const percentage = totalAmount > 0 ? (item.cost / totalAmount * 100) : 0;
-          const color = colors[item.provider] || 'var(--accent-blue)';
+          const color = colors[item.provider] || this.MONOCHROME_SHADES[index % this.MONOCHROME_SHADES.length] || 'var(--accent-blue)';
           
           const barHTML = `
             <div>
               <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">
-                <span style="font-weight:600; color:#fff;">${item.provider}</span>
+                <span style="font-weight:600; color:${labelColor};">${item.provider}</span>
                 <span>${item.cost.toLocaleString()} $ (${Math.round(percentage)}%)</span>
               </div>
               <div class="progress-bar-bg">
